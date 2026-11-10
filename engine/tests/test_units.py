@@ -85,3 +85,25 @@ def test_biggest_gap_and_missing_pct_skipped():
     assert biggest_gap(rows) == "a"
     assert side_edge([_row("c", None, 99)]) is None
     assert biggest_gap([]) is None
+
+
+def test_run_tables_rows_and_hints():
+    from cfbm.units import RUN_TABLES
+    p, r = _profile()
+    p["off_stuff_rate"] = [0.1, 0.2, 0.15, 0.18, 0.12]
+    p["def_stuff_rate"] = [0.2, 0.1, 0.15, 0.12, 0.18]
+    r = assign_tiers(p, set(p.index))
+    t = unit_tables("WVU", "Tech", p, r, RUN_TABLES)
+    labels = [row["label"] for u in t for row in u["rows"]]
+    assert labels == ["Yards the line creates", "Runs stuffed", "Short-yardage runs converted",
+                      "Points added per run", "Yards past the line (5 to 10)", "Breakaway yards (past 10)"]
+    stuff = t[0]["rows"][1]
+    assert stuff["hint"] == "Offense: lower is better · Defense: higher is better"
+    assert stuff["offense"]["rank"] == 1 and stuff["edge"] is not None
+
+
+def test_run_tables_without_run_data_are_empty_not_crashing():
+    from cfbm.units import RUN_TABLES
+    p, r = _profile()
+    t = unit_tables("WVU", "Tech", p, r, RUN_TABLES)
+    assert all(row["offense"]["value"] is None and row["edge"] is None for u in t for row in u["rows"])

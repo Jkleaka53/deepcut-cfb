@@ -24,7 +24,26 @@ TABLES = [
     ]),
 ]
 
+RUN_TABLES = [
+    ("Run blocking vs. run defense front", [
+        ("line_yards", "Yards the line creates", "yds", "off_line_yards", "def_line_yards"),
+        ("stuff_rate", "Runs stuffed", "pct", "off_stuff_rate", "def_stuff_rate"),
+        ("power_success", "Short-yardage runs converted", "pct", "off_power_success", "def_power_success"),
+    ]),
+    ("Running game vs. run defense", [
+        ("rush_epa", "Points added per run", "epa", "off_rush_epa", "def_rush_epa"),
+        ("second_level", "Yards past the line (5 to 10)", "yds", "off_second_level", "def_second_level"),
+        ("open_field", "Breakaway yards (past 10)", "yds", "off_open_field", "def_open_field"),
+    ]),
+]
+
 EXPLAIN = {
+    "line_yards": "Run yards credited to the blocking up front, per carry",
+    "stuff_rate": "Runs stopped at or behind the line",
+    "power_success": "3rd or 4th and 2 or less, or at the goal line: how often the run gets it",
+    "rush_epa": "How much each run helps the offense score",
+    "second_level": "Yards a back gains 5 to 10 yards downfield, per carry",
+    "open_field": "Yards past 10 on a run, per carry: the big runs",
     "int_rate": "How often a pass gets picked off",
     "epa_per_db": "How much each pass play helps the offense score",
     "success_rate": "Passes that keep the offense on schedule",
@@ -80,9 +99,10 @@ def _cell(team: str, metric: str | None, profile: pd.DataFrame, ranked: pd.DataF
             "pct": None if pct is None else round(pct, 1)}, pct
 
 
-def unit_tables(off_team: str, def_team: str, profile: pd.DataFrame, ranked: pd.DataFrame) -> list[dict]:
+def unit_tables(off_team: str, def_team: str, profile: pd.DataFrame, ranked: pd.DataFrame,
+                tables: list = TABLES) -> list[dict]:
     out = []
-    for title, rows in TABLES:
+    for title, rows in tables:
         built = []
         for key, label, fmt, off_metric, def_metric in rows:
             off_cell, off_pct = _cell(off_team, off_metric, profile, ranked)

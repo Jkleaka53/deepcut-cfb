@@ -88,3 +88,18 @@ def test_missing_stat_for_a_team_skips_that_factor():
     p.loc["Oregon", "off_sd_sr"] = float("nan")
     out = swing_block(MODEL, "Oregon", "Michigan", p, neutral=False)
     assert not any(d["key"] == "sd_sr" and d["offense"] == "Oregon" for d in out["drivers"])
+
+
+def test_key_rows_map_run_parents():
+    import copy
+    p = pre(Oregon=(8, {"stuff": (-0.2, 0.0), "line_yards": (4.0, 2.0)}),
+            Michigan=(8, {"stuff": (0.0, -0.2), "line_yards": (2.0, 4.0)}))
+    model = copy.deepcopy(MODEL)
+    for k in ("stuff", "line_yards"):
+        model["features"][k].update(proven=True, importance=0.9)
+    out = swing_block(model, "Oregon", "Michigan", p, neutral=False)
+    keys = {d["key"] for d in out["drivers"] if d["offense"] == "Oregon"}
+    want = {"stuff": "stuff_rate", "line_yards": "line_yards"}
+    assert keys & set(want), "fixture should yield a run driver for Oregon"
+    for k in keys & set(want):
+        assert want[k] in out["keyRows"]["Oregon"]

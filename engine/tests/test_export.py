@@ -20,6 +20,12 @@ def _plays(gid, home, away, week, n=12):
             out.append({"id": str(i), "gameId": gid, "offense": off, "defense": dfn, "home": home, "away": away,
                         "offenseScore": 0, "defenseScore": 0, "period": 1, "down": 3 if k % 3 == 0 else 1,
                         "distance": 7, "playType": ptype, "playText": "", "ppa": 0.3 if off == home else -0.1})
+        for k in range(4):  # runs: home gains 6, away is stuffed
+            i += 1
+            out.append({"id": str(i), "gameId": gid, "offense": off, "defense": dfn, "home": home, "away": away,
+                        "offenseScore": 0, "defenseScore": 0, "period": 1, "down": 1, "distance": 10,
+                        "playType": "Rush", "playText": "", "ppa": 0.2 if off == home else -0.3,
+                        "yardsGained": 6 if off == home else -1, "yardsToGoal": 60})
     return out
 
 
@@ -318,3 +324,22 @@ def test_qb_vs_block(out):
         assert set(qv) == {"name", "opponent", "oppRank", "of", "games"}
         assert qv["opponent"] == sec["defenseTeam"]
         assert all({"opponent", "oppRank", "result", "epaPerDb"} <= set(r) for r in qv["games"])
+
+
+def test_run_units_in_both_sections(out):
+    m = _load(out / "2025" / "matchups" / "7.json")
+    for sec in m["sections"]:
+        assert [u["title"] for u in sec["runUnits"]] == ["Run blocking vs. run defense front", "Running game vs. run defense"]
+        assert "runEdge" in sec and "runBiggestGap" in sec
+        assert all(u["title"] != "Run blocking vs. run defense front" for u in sec["units"])
+    rows = [r for sec in m["sections"] for u in sec["runUnits"] for r in u["rows"]]
+    assert any(r["offense"]["value"] is not None for r in rows)
+
+
+def test_summary_gap_can_pick_a_run_row():
+    from cfbm.export import summary_gap
+    row = lambda key, o, d: {"key": key, "label": key, "offense": {"pct": o}, "defense": {"pct": d}}
+    m = {"sections": [{"offenseTeam": "A", "defenseTeam": "B", "biggestGap": "epa_per_db", "runBiggestGap": "line_yards",
+                       "units": [{"rows": [row("epa_per_db", 60, 50)]}],
+                       "runUnits": [{"rows": [row("line_yards", 95, 10)]}]}]}
+    assert summary_gap(m) == {"key": "line_yards", "label": "line_yards", "favors": "A"}

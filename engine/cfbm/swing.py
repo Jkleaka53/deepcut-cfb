@@ -11,7 +11,9 @@ from cfbm.units import edge
 LABEL = {k: label for k, _, _, label in FEATURES}
 GAP_FLOOR = 0.25
 MAX_DRIVERS = 5
-PASS_ROW = {"pass_ppa": "epa_per_db", "pd_sr": "pd_epa", "pass_sr": "success_rate"}
+# The unit row each model feature badges as Key (passing and running rows).
+KEY_ROW = {"pass_ppa": "epa_per_db", "pd_sr": "pd_epa", "pass_sr": "success_rate",
+           "rush_ppa": "rush_epa", "stuff": "stuff_rate", "line_yards": "line_yards"}
 CUES = {
     "sd_sr": "Watch {off} on first and second down. If it stays on schedule, this edge is playing out.",
     "pass_ppa": "Watch {off}'s first few drives through the air. Chunk completions mean this edge is real.",
@@ -73,7 +75,7 @@ def swing_block(model: dict, home: str, away: str, pre: pd.DataFrame, neutral: b
         overall = {"edge": band.split("-")[0] if band else "even", "team": None if band in (None, "even") else (home if g > 0 else away)}
     key_rows = {home: [], away: []}
     for dr in drivers:
-        if dr["key"] in PASS_ROW and PASS_ROW[dr["key"]] not in key_rows[dr["offense"]]:
-            key_rows[dr["offense"]].append(PASS_ROW[dr["key"]])
+        if dr["key"] in KEY_ROW and KEY_ROW[dr["key"]] not in key_rows[dr["offense"]]:
+            key_rows[dr["offense"]].append(KEY_ROW[dr["key"]])
     note = None if drivers else "No big swing factors: these teams match up evenly on the stats the model trusts."
     return {"drivers": drivers, "overallEdge": overall, "keyRows": key_rows, "note": note}

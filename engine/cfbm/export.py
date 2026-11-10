@@ -21,7 +21,7 @@ from cfbm.qb import career, current_starter, passer_games
 from cfbm.splits import split_table, tier_lookup
 from cfbm.team_stats import RUN_COLUMNS, TG_COLUMNS, blended_profile, fbs_only, season_profile, team_game_stats
 from cfbm.tiers import assign_tiers
-from cfbm.units import biggest_gap, side_edge, unit_tables
+from cfbm.units import RUN_TABLES, biggest_gap, side_edge, unit_tables
 from cfbm.qb import COLUMNS as PASSER_COLUMNS
 from cfbm.skill import SKILL_COLUMNS, skill_games
 from cfbm.watch import watch_list
@@ -237,11 +237,15 @@ def matchup(d: _Data, g: dict, model: dict | None = None) -> dict:
         rows = [r for u in sec["units"] for r in u["rows"]]
         sec["edge"] = side_edge(rows)
         sec["biggestGap"] = biggest_gap(rows)
+        sec["runUnits"] = unit_tables(off, dfn, prof, ranked, RUN_TABLES)
+        run_rows = [r for u in sec["runUnits"] for r in u["rows"]]
+        sec["runEdge"] = side_edge(run_rows)
+        sec["runBiggestGap"] = biggest_gap(run_rows)
         sections.append(sec)
     swing = _swing(d, g, order, qbs, model) if model else None
     key_rows = (swing or {}).pop("keyRows", {}) if swing else {}
     for sec in sections:
-        for u in sec["units"]:
+        for u in sec["units"] + sec["runUnits"]:
             for r in u["rows"]:
                 r["isKey"] = r["key"] in key_rows.get(sec["offenseTeam"], [])
     notes = []
@@ -297,16 +301,17 @@ def _current(games: list[dict], now: datetime) -> tuple[int, str]:
 
 
 def summary_gap(m: dict) -> dict | None:
-    """The single widest rank gap across both passing sections, and which team it favors."""
+    """The single widest rank gap across both sections, passing and running, and which team it favors."""
     best = None
     for sec in m["sections"]:
-        rows = {r["key"]: r for u in sec["units"] for r in u["rows"]}
-        r = rows.get(sec.get("biggestGap"))
-        if r is None:
-            continue
-        gap = r["offense"]["pct"] - r["defense"]["pct"]
-        if best is None or abs(gap) > abs(best[0]):
-            best = (gap, r, sec["offenseTeam"] if gap > 0 else sec["defenseTeam"])
+        for units, key in ((sec["units"], "biggestGap"), (sec.get("runUnits", []), "runBiggestGap")):
+            rows = {r["key"]: r for u in units for r in u["rows"]}
+            r = rows.get(sec.get(key))
+            if r is None:
+                continue
+            gap = r["offense"]["pct"] - r["defense"]["pct"]
+            if best is None or abs(gap) > abs(best[0]):
+                best = (gap, r, sec["offenseTeam"] if gap > 0 else sec["defenseTeam"])
     if best is None:
         return None
     return {"key": best[1]["key"], "label": best[1]["label"], "favors": best[2]}
