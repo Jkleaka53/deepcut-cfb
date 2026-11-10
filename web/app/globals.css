@@ -284,7 +284,7 @@ details.more[open] summary::after { content: " −"; }
 .aw-switch button[aria-pressed="true"] { background: var(--ink); color: var(--card); }
 .aw-switch button:last-child[aria-pressed="true"] { background: #b42318; color: #ffffff; }
 .aw-switch button:disabled { cursor: not-allowed; opacity: 0.45; }
-.whatif { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; margin: 10px 0 0; padding: 9px 12px; background: var(--accent-tint); border-left: 4px solid var(--accent); font-size: 14px; font-weight: 600; }
+.whatif { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; margin: 10px 0 0; padding: 9px 12px; background: var(--accent-tint); border: 1px solid var(--accent); font-size: 14px; font-weight: 600; }
 .whatif-actions { display: inline-flex; gap: 12px; align-items: center; }
 .whatif-actions a { color: var(--accent-text); font-weight: 700; }
 .whatif-actions button { font: inherit; font-weight: 700; color: var(--accent-text); background: none; border: 1px solid var(--accent); padding: 3px 8px; cursor: pointer; }
