@@ -1,0 +1,52 @@
+name: Weekly data refresh
+
+on:
+  schedule:
+    - cron: "0 11 * * 0"   # Sunday 11:00 UTC, after Saturday's games
+    - cron: "0 11 * * 3"   # Wednesday 11:00 UTC, midweek games and schedule changes
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Restore CFBD cache
+        uses: actions/cache@v4
+        with:
+          path: engine/.cache
+          key: cfbd-${{ github.run_id }}
+          restore-keys: cfbd-
+
+      - name: Run engine tests
+        working-directory: engine
+        run: uv run pytest -q
+
+      - name: Build data
+        working-directory: engine
+        env:
+          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
+        run: uv run python -m cfbm.cli build --out ../web/public/data
+
+      - name: Commit data if it changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add web/public/data
+          if git diff --cached --quiet; then
+            echo "No data changes."
+          else
+            git commit -m "data: weekly refresh"
+            git push
+          fi
