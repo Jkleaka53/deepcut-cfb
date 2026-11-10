@@ -70,9 +70,29 @@ export interface Venue {
 
 export interface AvailabilityFlag { kind: "ok" | "warn"; text: string }
 
+export interface WatchPlayer {
+  athleteId: number;
+  name: string;
+  role: "QB" | "QB2" | "WR" | "RB";
+  share: number | null;
+  shareOf: "receiving yards" | "rushing yards" | null;
+  noStatsLastGame: boolean;
+}
+
+export interface Backup {
+  athleteId: number;
+  name: string;
+  games: number;
+  smallSample: boolean;
+  cells: Record<string, Cell>;
+  qbVs: QbVs;
+}
+
 export interface TeamAvailability {
   flags: AvailabilityFlag[];
   report: { conference: string | null; url: string | null; when: string | null; publishes?: boolean };
+  players?: WatchPlayer[];
+  backup?: Backup | null;
 }
 
 export interface Cell { value: number | null; rank: number | null; pct?: number | null }
