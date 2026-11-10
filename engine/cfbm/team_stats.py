@@ -12,7 +12,11 @@ TG_COLUMNS = ["game_id", "season", "season_type", "week", "order", "team", "oppo
               "epa_sum", "epa_n", "success", "sacks", "ints", "pressure_est", "pd_dropbacks",
               "pd_epa_sum", "pd_epa_n", "pd_sacks"]
 
-COUNT_COLS = ["games", "off_dropbacks", "def_dropbacks"]
+RUN_COLUMNS = ["runs", "rush_epa_sum", "rush_epa_n", "line_yards_sum", "second_level_sum", "open_field_sum",
+               "stuffs", "power_n", "power_conv"]
+KEYS = ["game_id", "season", "season_type", "week", "order", "team", "opponent"]
+
+COUNT_COLS = ["games", "off_dropbacks", "def_dropbacks", "off_runs", "def_runs"]
 
 
 def team_game_pass(plays: pd.DataFrame) -> pd.DataFrame:
@@ -34,6 +38,46 @@ def team_game_pass(plays: pd.DataFrame) -> pd.DataFrame:
     g = g.rename(columns={"offense": "team", "defense": "opponent"})
     g["order"] = [order_key(st, wk) for st, wk in zip(g["season_type"], g["week"])]
     return g[TG_COLUMNS]
+
+
+def team_game_run(plays: pd.DataFrame) -> pd.DataFrame:
+    """Per team-game rushing totals. Line yards use the Football Outsiders rule: losses count 120%,
+    the first 4 yards 100%, yards 5 to 10 50%, nothing past 10. Power = 3rd/4th and 2 or less,
+    or 2 yards or less from the goal line; converted when the run gains the distance."""
+    r = plays[plays["is_rush"] & ~plays["is_garbage"]].copy()
+    if r.empty:
+        return pd.DataFrame(columns=KEYS + RUN_COLUMNS)
+    y = r["yards"].fillna(0.0)
+    r["has_ppa"] = r["ppa"].notna()
+    r["ppa0"] = r["ppa"].fillna(0.0)
+    r["line"] = np.where(y < 0, 1.2 * y, np.minimum(y, 4) + 0.5 * np.clip(y - 4, 0, 6))
+    r["second"] = np.clip(y - 5, 0, 5)
+    r["open"] = np.clip(y - 10, 0, None)
+    r["stuff"] = y <= 0
+    dist = pd.to_numeric(r["distance"], errors="coerce")
+    r["power"] = (r["down"].isin([3, 4]) & (dist <= 2)) | (r["yards_to_goal"] <= 2)
+    r["conv"] = r["power"] & ((y >= dist) | (r["play_type"] == "Rushing Touchdown"))
+    g = r.groupby(["game_id", "season", "season_type", "week", "offense", "defense"], as_index=False).agg(
+        runs=("play_id", "size"), rush_epa_sum=("ppa0", "sum"), rush_epa_n=("has_ppa", "sum"),
+        line_yards_sum=("line", "sum"), second_level_sum=("second", "sum"), open_field_sum=("open", "sum"),
+        stuffs=("stuff", "sum"), power_n=("power", "sum"), power_conv=("conv", "sum"))
+    g = g.rename(columns={"offense": "team", "defense": "opponent"})
+    g["order"] = [order_key(st, wk) for st, wk in zip(g["season_type"], g["week"])]
+    return g[KEYS + RUN_COLUMNS]
+
+
+def team_games(plays: pd.DataFrame) -> pd.DataFrame:
+    """Pass and run totals per team-game in one frame; a side with no plays of a kind gets zeros."""
+    p, r = team_game_pass(plays), team_game_run(plays)
+    if p.empty and r.empty:
+        return pd.DataFrame(columns=TG_COLUMNS + RUN_COLUMNS)
+    out = p.merge(r, on=KEYS, how="outer") if not p.empty and not r.empty else (p if r.empty else r).copy()
+    for c in TG_COLUMNS + RUN_COLUMNS:
+        if c not in out:
+            out[c] = 0
+        elif c not in KEYS:
+            out[c] = out[c].fillna(0)
+    return out[TG_COLUMNS + RUN_COLUMNS]
 
 
 def fbs_only(tg: pd.DataFrame, fbs_by_season: dict[int, set[str]]) -> pd.DataFrame:
@@ -65,6 +109,15 @@ def _side(rows: pd.DataFrame, key: str, prefix: str) -> pd.DataFrame:
                                       if config.PRESSURE_PROXY == "pressure_est" else np.nan)
     out[f"{prefix}_pd_epa"] = _div(s["pd_epa_sum"], s["pd_epa_n"])
     out[f"{prefix}_pd_sack_rate"] = _div(s["pd_sacks"], s["pd_dropbacks"])
+    if "runs" in rows:
+        r = rows.groupby(key)[RUN_COLUMNS].sum()
+        out[f"{prefix}_runs"] = r["runs"]
+        out[f"{prefix}_rush_epa"] = _div(r["rush_epa_sum"], r["rush_epa_n"])
+        out[f"{prefix}_line_yards"] = _div(r["line_yards_sum"], r["runs"])
+        out[f"{prefix}_second_level"] = _div(r["second_level_sum"], r["runs"])
+        out[f"{prefix}_open_field"] = _div(r["open_field_sum"], r["runs"])
+        out[f"{prefix}_stuff_rate"] = _div(r["stuffs"], r["runs"])
+        out[f"{prefix}_power_success"] = _div(r["power_conv"], r["power_n"])
     return out
 
 
@@ -85,6 +138,9 @@ def season_profile(tg: pd.DataFrame, season: int, before_order: int | None,
     prof = prof.join(_side(rows, "team", "off")).join(_side(rows, "opponent", "def"))
     prof["off_dropbacks"] = prof["off_dropbacks"].fillna(0).astype(int)
     prof["def_dropbacks"] = prof["def_dropbacks"].fillna(0).astype(int)
+    for c in ("off_runs", "def_runs"):
+        if c in prof:
+            prof[c] = prof[c].fillna(0).astype(int)
     prof["def_front7_havoc"] = [(havoc or {}).get(t, np.nan) for t in prof.index]
     return prof
 

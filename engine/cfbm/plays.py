@@ -8,7 +8,7 @@ from cfbm import config
 
 COLUMNS = ["play_id", "game_id", "season", "week", "season_type", "offense", "defense", "period",
            "down", "distance", "play_type", "play_text", "ppa", "margin_pre", "is_dropback", "is_sack",
-           "is_int", "is_pressure_est", "is_passing_down", "is_garbage"]
+           "is_int", "is_pressure_est", "is_passing_down", "is_garbage", "yards", "yards_to_goal", "is_rush"]
 
 _DROPBACK = config.PLAY_TYPES["pass"] | config.PLAY_TYPES["sack"] | config.PLAY_TYPES["interception"]
 
@@ -92,7 +92,13 @@ def normalize_plays(raw: list[dict], season: int, season_type: str, week: int) -
             "is_pressure_est": False,
             "is_passing_down": _is_passing_down(p.get("down"), p.get("distance")),
             "is_garbage": _is_garbage(p.get("period"), margin),
+            "yards": p.get("yardsGained"),
+            "yards_to_goal": p.get("yardsToGoal"),
+            # CFBD can't separate QB scrambles from designed runs; sacks are never runs.
+            "is_rush": ptype in config.PLAY_TYPES["rush"],
         })
     df = pd.DataFrame(rows, columns=COLUMNS)
     df["ppa"] = pd.to_numeric(df["ppa"], errors="coerce")
+    df["yards"] = pd.to_numeric(df["yards"], errors="coerce")
+    df["yards_to_goal"] = pd.to_numeric(df["yards_to_goal"], errors="coerce")
     return df

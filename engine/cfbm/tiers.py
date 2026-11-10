@@ -17,6 +17,11 @@ METRIC_DIRECTION = {
     "off_pressure_rate": -1, "off_pd_epa": 1, "off_pd_sack_rate": -1,
     "def_epa_per_db": -1, "def_success_rate": -1, "def_sack_rate": 1, "def_int_rate": 1,
     "def_pressure_rate": 1, "def_pd_epa": -1, "def_pd_sack_rate": 1, "def_front7_havoc": 1,
+    # Run phase (Slice 4)
+    "off_rush_epa": 1, "off_line_yards": 1, "off_stuff_rate": -1, "off_power_success": 1,
+    "off_second_level": 1, "off_open_field": 1,
+    "def_rush_epa": -1, "def_line_yards": -1, "def_stuff_rate": 1, "def_power_success": -1,
+    "def_second_level": -1, "def_open_field": -1,
 }
 
 

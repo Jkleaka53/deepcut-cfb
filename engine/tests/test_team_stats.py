@@ -119,3 +119,80 @@ def test_fbs_only_drops_games_involving_non_fbs_teams():
     assert out["game_id"].tolist() == [1]
     p = season_profile(out, 2025, None)
     assert p.loc["A", "off_sack_rate"] == 0 and p.loc["A", "games"] == 1
+
+
+# ---- Slice 4: run phase ----
+from cfbm.team_stats import team_game_run, team_games
+from cfbm.tiers import assign_tiers
+
+
+def _rush(i, y, ppa=0.1, off="A", deff="B", down=1, distance=10, ytg=50, ptype="Rush", **kw):
+    r = _raw(i, ptype, ppa, off=off, deff=deff, down=down, distance=distance, **kw)
+    r.update(yardsGained=y, yardsToGoal=ytg)
+    return r
+
+
+def _run(raw):
+    return team_game_run(normalize_plays(raw, 2025, "regular", 2)).set_index("team")
+
+
+def test_line_second_level_and_open_field_yards():
+    a = _run([_rush(1, -2), _rush(2, 3), _rush(3, 7), _rush(4, 15)]).loc["A"]
+    assert a["runs"] == 4
+    assert a["line_yards_sum"] == pytest.approx(-2.4 + 3 + 5.5 + 7)
+    assert a["second_level_sum"] == pytest.approx(0 + 0 + 2 + 5)
+    assert a["open_field_sum"] == pytest.approx(5)
+    assert a["stuffs"] == 1
+
+
+def test_power_chances_and_conversions():
+    a = _run([_rush(1, 2, down=3, distance=1), _rush(2, 0, down=1, distance=2, ytg=2),
+              _rush(3, 1, down=2, distance=1), _rush(4, 1, down=4, distance=2)]).loc["A"]
+    assert a["power_n"] == 3 and a["power_conv"] == 1
+
+
+def test_sacks_passes_and_garbage_are_not_runs():
+    raw = [_rush(1, 4), _rush(2, -7, ptype="Sack"), _rush(3, 9, ptype="Pass Reception", off_score=40, period=4),
+           _rush(4, 30, off_score=40, period=4), _rush(5, 2, ptype="Rushing Touchdown", ytg=2)]
+    a = _run(raw).loc["A"]
+    assert a["runs"] == 2
+
+
+def test_team_games_keeps_run_only_teams():
+    raw = [_rush(1, 4), _rush(2, 5, off="B", deff="A"),
+           {**_raw(3, "Pass Reception", 0.3), "yardsGained": 8, "yardsToGoal": 40}]
+    tg = team_games(normalize_plays(raw, 2025, "regular", 2)).set_index("team")
+    assert tg.loc["B", "runs"] == 1 and tg.loc["B", "dropbacks"] == 0
+    assert tg.loc["A", "runs"] == 1 and tg.loc["A", "dropbacks"] == 1
+
+
+def _rtg(team, opp, gid, wk, runs=10, line=40.0, stuffs=2, pn=0, pc=0, s=2025):
+    row = _tg([(s, "regular", wk, gid, team, opp, 10, 0, 0.0)]).iloc[0].to_dict()
+    row.update(runs=runs, rush_epa_sum=0.5, rush_epa_n=runs, line_yards_sum=line, second_level_sum=5.0,
+               open_field_sum=3.0, stuffs=stuffs, power_n=pn, power_conv=pc)
+    return row
+
+
+def test_profile_rates_and_no_power_chances_is_nan():
+    tg = pd.DataFrame([_rtg("A", "B", 1, 1), _rtg("A", "C", 2, 2, line=20.0, stuffs=0, pn=4, pc=3),
+                       _rtg("B", "A", 1, 1, stuffs=5)])
+    p = season_profile(tg, 2025, None)
+    assert p.loc["A", "off_line_yards"] == pytest.approx(3.0)
+    assert p.loc["A", "off_stuff_rate"] == pytest.approx(0.1)
+    assert p.loc["A", "off_power_success"] == pytest.approx(0.75)
+    assert math.isnan(p.loc["B", "off_power_success"])
+    assert p.loc["A", "def_stuff_rate"] == pytest.approx(0.5)
+    assert p.loc["A", "off_runs"] == 20
+
+
+def test_fewer_stuffs_ranks_higher_for_offense_and_more_for_defense():
+    tg = pd.DataFrame([_rtg("A", "B", 1, 1, stuffs=1), _rtg("B", "A", 1, 1, stuffs=6)])
+    r = assign_tiers(season_profile(tg, 2025, None), {"A", "B"})
+    assert r.loc["A", "off_stuff_rate_rank"] == 1 and r.loc["A", "def_stuff_rate_rank"] == 1  # A stuffed 6 of B's 10 runs
+
+
+def test_early_season_blends_run_columns():
+    tg = pd.DataFrame([_rtg("A", "B", 1, 1, line=20.0, s=2024), _rtg("A", "B", 11, 1, line=40.0, s=2025)])
+    tg.loc[1, "order"] = 1
+    p, early = blended_profile(tg, 2025, 3, "regular", None, None)
+    assert early and 2.0 < p.loc["A", "off_line_yards"] < 4.0
