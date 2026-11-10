@@ -1,13 +1,16 @@
 # DeepCut CFB
 
-**Not for gambling or betting. DeepCut CFB is a personal statistics project.**
+**Not for gambling or betting. DeepCut CFB is a personal statistics project.** Not affiliated with any team, conference or the NCAA.
 
 Most college football prediction sites tell you who's favored and stop there. DeepCut CFB breaks every FBS game down on the numbers and shows the reasoning:
 
 - **Unit vs. unit.** Each team's pass protection against the other team's pass rush, and its passing offense against the other's pass defense, with national ranks and an edge in plain words (Even / Slight / Clear).
 - **Opponent splits.** How a quarterback has played across his whole college career, including other schools, against top-third, middle-third and bottom-third pass defenses. The tier this game falls in is highlighted. The same splits cover offensive lines against pass rushes, and defenses against passing offenses.
 
-It covers the current season and the previous one, and refreshes twice a week during the season.
+- **Game day context.** AP Top 25 ranks, each school's colors and logo, the stadium, and a kickoff weather forecast.
+- **Availability.** What each team's own box scores say about its quarterback (who started last game, any change), plus a link to the conference's official availability report.
+
+It covers the current season and the previous one, and refreshes four times a week during the season.
 
 ## How it works
 
@@ -17,7 +20,8 @@ CollegeFootballData API ──► engine/ (Python) ──► web/public/data/*.j
 
 - `engine/` pulls play-by-play and box scores, caches them on disk, computes everything, and writes static JSON.
 - `web/` is a static Next.js site that only reads that JSON. It never calls the stats API.
-- `.github/workflows/refresh.yml` reruns the engine on Sunday and Wednesday mornings (UTC) and commits new data. The host redeploys on push.
+- `.github/workflows/refresh.yml` reruns the engine on Sunday and Wednesday mornings, Friday evening and Saturday morning (UTC) and commits new data. The host redeploys on push. The Friday and Saturday runs keep kickoff weather fresh.
+- Team logos are downloaded during the site build (`web/scripts/fetch-logos.mjs`) and never committed. A logo that fails to download shows the team's abbreviation instead.
 
 ## Run it locally
 
@@ -72,6 +76,16 @@ In a game's breakdown, opponents from earlier seasons are tiered on their full-s
 
 **Edges** compare the two sides' national percentiles on a stat. A gap under 15 points is "Even", 15 to 35 is "Slight", and more than 35 is "Clear".
 
+**Plain-English stats.** The site labels stats in words ("Interceptions", "Points added per pass") with a one-line explanation. For some stats a lower number is better for one side, for example interceptions for an offense; those rows say so ("Offense: lower is better · Defense: higher is better"). Ranks are always 1st = best for that side, whichever way the number runs.
+
+**The edge card** averages the percentile gap across a passing matchup's stats and maps it to the same Even / Slight / Clear bands. It says who ranks better on these stats, nothing more. The "Biggest gap" badge marks the single stat with the widest gap.
+
+**AP ranks** come from CFBD's copy of the AP Top 25: the latest regular-season poll at or before the game's week. Week 1 uses the preseason poll; bowls and the playoff use the final regular-season poll.
+
+**Weather** comes from [Open-Meteo](https://open-meteo.com): the hourly forecast at the stadium for the kickoff hour (temperature, rain chance, wind). Games more than 16 days out say "Forecast closer to kickoff", indoor stadiums say "Indoors", games with no kickoff time use that day's forecast, and finished games show no weather. Each forecast shows when it was made.
+
+**Availability.** The quarterback check describes what happened in the box scores and never says why: who was the primary passer last game, whether that changed from the game before, and whether the season's usual starter didn't play. It never claims an injury. Links go to the SEC, ACC and Big 12 official availability pages; other conferences show "No official availability report for this game" until a page is confirmed.
+
 **Bowls and the playoff** show a note that opt-outs and transfers can make rosters differ from season numbers. Neutral-site games are labeled as such.
 
 ## Not for gambling
@@ -84,4 +98,4 @@ Code: [MIT](LICENSE). Football data belongs to its sources and is used under [Co
 
 ## Credits
 
-Data: [CollegeFootballData.com](https://collegefootballdata.com).
+Data: [CollegeFootballData.com](https://collegefootballdata.com). Weather data by [Open-Meteo.com](https://open-meteo.com), used under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) for non-commercial use. Team names and logos belong to their schools; this project isn't affiliated with any of them.

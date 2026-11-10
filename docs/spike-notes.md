@@ -18,3 +18,12 @@ Other useful facts: box score passing stats are `C/ATT, YDS, AVG, TD, INT, QBR` 
 ## First full build (Task 10)
 
 The build covered 2021–2026 in 201 CFBD calls and about 4.5 minutes. It wrote 934 + 888 games and 808 + 761 matchups (2025 / 2026), 19 MB of JSON in total. The second run hits the cache, so only the current season's in-progress weeks get refetched.
+
+## Redesign findings (2026-11-10)
+
+- **Team colors and logos.** `/teams?year=` has `color`, `alternateColor` and `logos` (index 0 for light backgrounds, index 1 for dark). Some primaries are too light for white text, so the engine darkens a fill until it reaches 4.5:1 and picks separate text colors for light and dark cards.
+- **Venues.** `/venues` has latitude, longitude, `dome`, `grass`, city, state and timezone. Games carry `venueId`.
+- **Rankings.** `/rankings` returns every poll by week. The regular-season week-1 entry is the preseason poll. A live check matched (Oregon 18th in week 11).
+- **Weather.** CFBD's `/games/weather` returns 401 on the free tier. Open-Meteo works with no key: hourly, 16 days out, free for non-commercial use with CC BY credit. One request per stadium and kickoff hour; a full build made about 200.
+- **Injuries.** ESPN's college injuries feed is gone. Power 4 availability reports are published through HD Intelligence, which has no published terms, so nothing is scraped. The conference report pages are linked instead. The Big Ten's page couldn't be confirmed (bigten.org blocks automated requests), so Big Ten games show no link for now.
+- **Build cost.** A warm full build made 16 CFBD calls and took about a minute.
