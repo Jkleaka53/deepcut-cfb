@@ -157,3 +157,16 @@ R1 shows only what free data supports reliably:
 - The conference-to-report-URL list (verify each page exists; skip conferences without one).
 - JSON field names and file layout.
 - How the "More" panels open (no animation either way).
+
+## Next feature (R2): Availability watch, a what-if tab
+
+Owner idea, approved 2026-11-10. Built right after R1, with its own plan. It turns the missing injury feed into a feature: the user reads the official report (linked in the tab) and sets players In or Out.
+
+- **Who is listed, per team:** starting QB, backup QB, the top three receivers by targets, and the lead running back (needs CFBD player box scores for receiving and rushing, plus the backup QB's career splits).
+- **Defaults:** everyone starts **In**, except a listed player who missed the team's most recent game while the team played. They start **Out**, labeled "Missed last game". This is the only automatic guess, and it never claims an injury. Nobody maintains a researched list.
+- **Research link:** the official conference availability report link sits at the top of the tab: "Check the official report, then set players In or Out."
+- **What a switch changes:**
+  - **QB:** setting the starter Out swaps in the backup's real numbers and splits; the passing-game rows, ranks and edge lines recompute in the browser. A thin backup sample is labeled small sample.
+  - **Receivers and running back:** shows their share of team production (for example "31% of receiving yards"). Edges do **not** change, because free data can't honestly measure one player's effect on a unit.
+- **Wording:** edges stay in words (Even / Slight edge / Big edge). Never odds, percentages or "50/50".
+- **Memory:** choices are saved on the device per game (local storage, wrapped so it fails safely); "Reset to defaults" restores them; a banner shows whenever the page differs from the defaults ("What-if: Tommy Carr set Out").
