@@ -27,15 +27,63 @@ export interface GameSummary {
   homePoints: number | null;
   awayPoints: number | null;
   hasBreakdown: boolean;
+  homeRank?: number | null;
+  awayRank?: number | null;
+  weather?: Weather | null;
+  gap?: { key: string; label: string; favors: string } | null;
 }
+
+export type WeatherIcon = "clear" | "partly-cloudy" | "cloudy" | "fog" | "drizzle" | "rain" | "snow" | "storm";
+
+export interface Weather {
+  status: "forecast" | "tba" | "indoors" | "far";
+  label?: string;
+  icon?: WeatherIcon;
+  tempF?: number | null;
+  precipPct?: number | null;
+  windMph?: number | null;
+  gustMph?: number | null;
+  asOf?: string;
+}
+
+export interface TeamInfo {
+  school: string;
+  id: number | null;
+  abbr: string;
+  conference: string | null;
+  fill: string;
+  textLight: string;
+  textDark: string;
+  logo: string | null;
+  logoDark: string | null;
+}
+
+export interface Venue {
+  name: string | null;
+  city: string | null;
+  state: string | null;
+  grass: boolean | null;
+  dome: boolean | null;
+}
+
+export interface AvailabilityFlag { kind: "ok" | "warn"; text: string }
+
+export interface TeamAvailability {
+  flags: AvailabilityFlag[];
+  report: { conference: string | null; url: string | null; when: string | null };
+}
+
+export interface Cell { value: number | null; rank: number | null; pct?: number | null }
 
 export interface UnitRow {
   key: string;
   label: string;
   format: "pct" | "epa";
-  offense: { value: number | null; rank: number | null };
-  defense: { value: number | null; rank: number | null };
+  offense: Cell;
+  defense: Cell;
   edge: Edge;
+  explain?: string;
+  hint?: string | null;
 }
 
 export interface UnitTable {
@@ -69,6 +117,8 @@ export interface Section {
   defenseTeam: string;
   units: UnitTable[];
   splits: SplitTable[];
+  edge?: Edge;
+  biggestGap?: string | null;
 }
 
 export interface Matchup {
@@ -77,6 +127,8 @@ export interface Matchup {
   notes: string[];
   quarterbacks: Record<string, { athleteId: number; name: string } | null>;
   sections: Section[];
+  venue?: Venue | null;
+  availability?: Record<string, TeamAvailability>;
 }
 
 export interface PlayerEntry {
