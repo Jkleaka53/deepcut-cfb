@@ -108,7 +108,7 @@ def test_trick_pass_receiver_stays_a_receiver_and_is_not_backup():
 def test_unknown_position_falls_back_to_passing_volume():
     prows = BASE_P + [P(2, 2, 20, "Wr One", 1)]
     out = wl(prows=prows, positions={})
-    assert out["backupId"] == 11  # 5 attempts beats the 1-attempt receiver
+    assert out["backupId"] == 11  # the receiver (has catches) is not a QB
     assert "Wr One" in [x["name"] for x in out["players"] if x["role"] == "WR"]
 
 
@@ -116,3 +116,13 @@ def test_rb_must_be_a_back_when_position_known():
     k = BASE_K + [K(g, g, 22, "Wr Three", "rushing", 40, 100) for g in (1, 2)] + [K(1, 1, 40, "Ol Guy", "rushing", 99, 1)]
     out = wl(krows=k, positions={**POS, 40: "OL"})
     assert out["players"][-1]["name"] == "Rb One"
+
+
+def test_unknown_position_low_volume_passer_without_catches_is_a_qb():
+    prows = [P(1, 1, 10, "Starter", 28), P(2, 2, 10, "Starter", 30), P(2, 2, 15, "Mop Up", 2)]
+    assert wl(prows=prows, positions={})["backupId"] == 15
+
+
+def test_no_skill_rows_lists_qbs_only():
+    out = wl(krows=[])
+    assert [x["role"] for x in out["players"]] == ["QB", "QB2"]

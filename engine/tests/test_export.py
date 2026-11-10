@@ -34,8 +34,10 @@ def _box(gid, home, away, category="passing"):
             return {"team": t, "categories": [{"name": "rushing", "types": [
                 {"name": "CAR", "athletes": [{"id": str(base + 9), "name": f"{t} RB", "stat": "15"}]},
                 {"name": "YDS", "athletes": [{"id": str(base + 9), "name": f"{t} RB", "stat": "70"}]}]}]}
-        return {"team": t, "categories": [{"name": "passing", "types": [
-            {"name": "C/ATT", "athletes": [{"id": str(base + 1), "name": f"{t} QB", "stat": "10/20"}]}]}]}
+        qbs = [{"id": str(base + 1), "name": f"{t} QB", "stat": "10/20"}]
+        if t == "A" and gid == 4:
+            qbs.append({"id": str(base + 8), "name": "A Backup", "stat": "1/2"})
+        return {"team": t, "categories": [{"name": "passing", "types": [{"name": "C/ATT", "athletes": qbs}]}]}
     return {"id": gid, "teams": [team(home), team(away)]}
 
 
@@ -77,6 +79,8 @@ class WorldClient:
                      "dome": False, "grass": True, "timezone": "America/New_York"}]
         if path == "/games":
             return [g for g in self.games if g["seasonType"] == params["seasonType"] and params["year"] == 2025]
+        if path == "/roster":
+            return []
         if path == "/stats/season/advanced":
             return [{"team": t, "defense": {"havoc": {"frontSeven": 0.05 + i / 100}}} for i, t in enumerate(FBS)]
         wk = [g for g in self.games if g["seasonType"] == params["seasonType"] and g["week"] == params["week"]
@@ -247,6 +251,19 @@ def test_availability_block(out):
     assert set(m["availability"]) == {"A", "F"}
     a = m["availability"]["A"]
     assert isinstance(a["flags"], list) and a["report"] == {"conference": "Conf", "url": None, "when": None, "publishes": False}
+
+
+def test_availability_watch_block(out):
+    m = _load(out / "2025" / "matchups" / "7.json")
+    a = m["availability"]["A"]
+    roles = [p["role"] for p in a["players"]]
+    assert roles[:2] == ["QB", "QB2"] and roles.count("WR") == 3 and roles[-1] == "RB"
+    assert a["players"][1]["name"] == "A Backup"
+    b = a["backup"]
+    assert b["name"] == "A Backup" and b["games"] == 0 and b["smallSample"] is True
+    assert set(b["cells"]) >= {"epa_per_db", "sack_rate"}
+    assert b["qbVs"]["opponent"] == "F" and b["qbVs"]["of"] is not None
+    assert m["availability"]["F"]["backup"] is None
 
 
 def test_game_summary_exports_tbd_flag():

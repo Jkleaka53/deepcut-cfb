@@ -24,6 +24,8 @@ from cfbm.tiers import assign_tiers
 from cfbm.units import biggest_gap, side_edge, unit_tables
 from cfbm.qb import COLUMNS as PASSER_COLUMNS
 from cfbm.skill import SKILL_COLUMNS, skill_games
+from cfbm.watch import watch_list
+from cfbm.backup import backup_block
 
 
 def to_json_safe(obj):
@@ -86,6 +88,7 @@ class _Data:
         self.orders: dict[int, int] = {}
         self.teams: dict[int, dict[str, dict]] = {}
         self.venues: dict[int, dict] = fetch.venues(client)
+        self.positions: dict[int, str] = fetch.roster_positions(client, live_season, True)
         self.game_by_id: dict[int, dict] = {}
         tgs, passers, skill = [], [], []
         for s in seasons_all:
@@ -204,9 +207,23 @@ def matchup(d: _Data, g: dict) -> dict:
         "quarterbacks": {t: (None if q is None else {"athleteId": q[0], "name": q[1]}) for t, q in qbs.items()},
         "sections": sections,
         "availability": {t: {"flags": qb_flags(d.passers, t, s, order),
-                             "report": report_for((d.teams.get(s, {}).get(t) or {}).get("conference"))}
-                         for t in (away, home)},
+                             "report": report_for((d.teams.get(s, {}).get(t) or {}).get("conference")),
+                             **_watch(d, s, order, t, dfn, qbs[t], prof, ranked, ranks)}
+                         for t, dfn in ((away, home), (home, away))},
     }
+
+
+def _watch(d: _Data, s: int, order: int, team: str, dfn: str, qb, prof, ranked, ranks) -> dict:
+    wl = watch_list(d.passers, d.skill, team, s, order, qb, d.positions)
+    backup = None
+    if wl["backupId"] is not None:
+        bid = wl["backupId"]
+        name = next(p["name"] for p in wl["players"] if p["athleteId"] == bid)
+        games = career(d.passers, bid)[["game_id", "team"]].drop_duplicates()
+        rows = _before(d.tg, s, order).merge(games, on=["game_id", "team"])
+        backup = backup_block(rows, name, bid, prof, ranked.index, d.game_by_id, ranks[0])
+        backup["qbVs"].update({"opponent": dfn, "oppRank": ranks[0].get((s, dfn)), "of": ranks[1].get(s)})
+    return {"players": wl["players"], "backup": backup}
 
 
 STALE_AFTER = timedelta(days=2)

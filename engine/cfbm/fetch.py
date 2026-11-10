@@ -36,6 +36,15 @@ def skill_box(client, season: int, season_type: str, week: int, games_list: list
                       cacheable=week_complete(games_list, season_type, week))
 
 
+def roster_positions(client, season: int, live: bool) -> dict[int, str]:
+    out: dict[int, str] = {}
+    for p in client.get("/roster", {"year": season}, cacheable=not live) or []:
+        aid = str(p.get("id", ""))
+        if aid.isdigit() and p.get("position"):
+            out[int(aid)] = p["position"]
+    return out
+
+
 def advanced_season(client, season: int, live: bool) -> list[dict]:
     return client.get("/stats/season/advanced", {"year": season}, cacheable=not live)
 
