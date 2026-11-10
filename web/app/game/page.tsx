@@ -112,6 +112,7 @@ function MatchupView() {
       <SectionTabs show={tabs} />
 
       <section id="preview">
+        <h3 className="sec-title">Preview</h3>
         <SwingCard swing={m.swing} teams={teams} />
         <EdgeCard sections={m.sections} teams={teams} overall={m.swing?.overallEdge} />
         {gaps.length > 0 && <div className="card">
@@ -126,10 +127,12 @@ function MatchupView() {
       </section>
 
       <section id="passing">
+        <h3 className="sec-title">Passing game</h3>
         <PhaseCards sections={m.sections} verb="passes" teams={teams} />
       </section>
 
       {tabs.includes("running") && <section id="running">
+        <h3 className="sec-title">Running game</h3>
         <PhaseCards sections={m.sections.map(runView).filter((s): s is Section => s !== null)} verb="runs" teams={teams} />
       </section>}
 

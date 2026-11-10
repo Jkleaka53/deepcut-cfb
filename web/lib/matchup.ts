@@ -37,12 +37,13 @@ export function topGaps(sections: Section[], n = 3): { section: Section; row: Un
 
 export function edgeLine(section: Section, verb: "passes" | "runs" = "passes"): { text: string; team: string | null } | null {
   const off = section.offenseTeam, def = section.defenseTeam;
-  const size = (e: string) => (e.startsWith("clear") ? "Big edge" : "Slight edge");
+  const size = (e: string) => (e.startsWith("clear") ? "a big edge" : "a slight edge");
   const e = section.edge;
   if (!e) return null;
-  if (e === "even") return { text: `${off} ${verb} → Even`, team: null };
-  if (e.endsWith("defense")) return { text: `${off} ${verb} → ${def} D · ${size(e)}`, team: def };
-  return { text: `${off} ${verb} → ${off} offense · ${size(e)}`, team: off };
+  const when = `When ${off} ${verb}:`;
+  if (e === "even") return { text: `${when} even matchup`, team: null };
+  if (e.endsWith("defense")) return { text: `${when} ${def} defense has ${size(e)}`, team: def };
+  return { text: `${when} ${off} offense has ${size(e)}`, team: off };
 }
 
 /** Tabs to show: Availability only when the data carries it (old-format JSON doesn't). */

@@ -34,9 +34,9 @@ describe("topGaps", () => {
 
 describe("edgeLine", () => {
   it("defense big", () =>
-    expect(edgeLine(sec("Michigan", "Oregon", [], "clear-defense"))).toEqual({ text: "Michigan passes → Oregon D · Big edge", team: "Oregon" }));
+    expect(edgeLine(sec("Michigan", "Oregon", [], "clear-defense"))).toEqual({ text: "When Michigan passes: Oregon defense has a big edge", team: "Oregon" }));
   it("offense slight", () =>
-    expect(edgeLine(sec("Michigan", "Oregon", [], "slight-offense"))).toEqual({ text: "Michigan passes → Michigan offense · Slight edge", team: "Michigan" }));
-  it("even", () => expect(edgeLine(sec("Michigan", "Oregon", [], "even"))).toEqual({ text: "Michigan passes → Even", team: null }));
+    expect(edgeLine(sec("Michigan", "Oregon", [], "slight-offense"))).toEqual({ text: "When Michigan passes: Michigan offense has a slight edge", team: "Michigan" }));
+  it("even", () => expect(edgeLine(sec("Michigan", "Oregon", [], "even"))).toEqual({ text: "When Michigan passes: even matchup", team: null }));
   it("null", () => expect(edgeLine(sec("Michigan", "Oregon", [], null))).toBeNull());
 });

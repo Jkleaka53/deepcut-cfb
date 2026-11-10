@@ -31,7 +31,7 @@ describe("run phase", () => {
   });
 
   it("edge line says runs for the run view", () => {
-    expect(edgeLine(runView(sec(runs))!, "runs")).toEqual({ text: "Georgia runs → Missouri D · Slight edge", team: "Missouri" });
+    expect(edgeLine(runView(sec(runs))!, "runs")).toEqual({ text: "When Georgia runs: Missouri defense has a slight edge", team: "Missouri" });
   });
 
   it("biggest edges can pick a run row and know it is a run", () => {
@@ -63,6 +63,15 @@ describe("run phase", () => {
 
   it("edge card shows a run line per side", () => {
     const h = html(<EdgeCard sections={[sec(runs)]} teams={{}} />);
-    expect(h).toContain("Georgia runs → Missouri D · Slight edge");
+    expect(h).toContain("When Georgia runs: Missouri defense has a slight edge");
+  });
+});
+
+describe("section headers", () => {
+  it("every section on the game page has a title like QB splits", async () => {
+    const fs = await import("node:fs");
+    const src = fs.readFileSync("app/game/page.tsx", "utf8");
+    for (const t of ["Preview", "Passing game", "Running game", "QB splits", "Availability watch"])
+      expect(src).toContain(`<h3 className="sec-title">${t}</h3>`);
   });
 });
