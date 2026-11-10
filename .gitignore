@@ -1,0 +1,10 @@
+.superpowers/
+engine/.cache/
+.env
+__pycache__/
+.venv/
+.pytest_cache/
+web/node_modules/
+web/.next/
+web/out/
+.DS_Store
