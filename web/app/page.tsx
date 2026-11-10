@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Star } from "lucide-react";
+import { Bell, Star } from "lucide-react";
 import ChipRow from "@/components/ChipRow";
 import GotwCard from "@/components/GotwCard";
 import ScoreRow from "@/components/ScoreRow";
 import { loadGames, loadGotw, loadIndex, loadPlayers, loadTeams } from "@/lib/data";
 import { gotwFor, type GotwPicks } from "@/lib/gotw";
 import { getFavorites, toggleFavorite } from "@/lib/favorites";
-import { FILTERS, type Filter, groupByDay, passes, POST, weekChips, weekValue } from "@/lib/filters";
+import { getWatch, toggleWatch } from "@/lib/watchlist";
+import { FILTERS, type Filter, groupByDay, loadView, passes, POST, saveView, weekChips, weekValue } from "@/lib/filters";
 import { matchGame } from "@/lib/search";
 import type { GameSummary, Index, PlayerEntry, TeamInfo } from "@/lib/types";
 
@@ -20,6 +21,7 @@ export default function Home() {
   const [gotw, setGotw] = useState<GotwPicks>({});
   const [players, setPlayers] = useState<PlayerEntry[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [watched, setWatched] = useState<number[]>([]);
   const [query, setQuery] = useState("");
   const [week, setWeek] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -27,11 +29,19 @@ export default function Home() {
 
   useEffect(() => {
     setFavorites(getFavorites());
+    setWatched(getWatch());
     loadIndex()
       .then((ix) => {
         setIndex(ix);
-        setSeason(ix.currentSeason);
-        setWeek(ix.seasonType === "postseason" ? POST : String(ix.currentWeek));
+        const saved = loadView();
+        if (saved && ix.seasons.includes(saved.season)) {
+          setSeason(saved.season);
+          setWeek(saved.week);
+          setFilter(saved.filter);
+        } else {
+          setSeason(ix.currentSeason);
+          setWeek(ix.seasonType === "postseason" ? POST : String(ix.currentWeek));
+        }
       })
       .catch(() => setError("Game data isn't available yet."));
     loadPlayers().then(setPlayers).catch(() => setPlayers([]));
@@ -43,6 +53,10 @@ export default function Home() {
     loadTeams(season).then(setTeams);
     loadGotw(season).then(setGotw);
   }, [season]);
+
+  useEffect(() => {
+    if (season !== null && week) saveView({ season, week, filter });
+  }, [season, week, filter]);
 
   const currentWeek = index && season === index.currentSeason
     ? (index.seasonType === "postseason" ? POST : String(index.currentWeek)) : null;
@@ -63,9 +77,9 @@ export default function Home() {
   const visible = useMemo(
     () => games
       .filter((g) => searching || weekValue(g) === week)
-      .filter((g) => passes(g, filter, favorites))
+      .filter((g) => passes(g, filter, favorites, watched))
       .filter((g) => matchGame(g, query, players)),
-    [games, week, filter, favorites, query, players, searching],
+    [games, week, filter, favorites, watched, query, players, searching],
   );
 
   const myGames = useMemo(
@@ -76,6 +90,10 @@ export default function Home() {
   const featured = searching ? null : gotwFor(gotw, week, games, filter, favorites);
 
   const onToggle = (team: string) => setFavorites(toggleFavorite(team));
+  const onWatch = (id: number) => setWatched(toggleWatch(id));
+  const row = (g: GameSummary) => (
+    <ScoreRow key={g.id} game={g} teams={teams} favorites={favorites} onToggle={onToggle} watched={watched.includes(g.id)} onWatch={onWatch} />
+  );
 
   if (error && !index) return <p className="empty">{error}</p>;
   if (!index) return <p className="empty">Loading games…</p>;
@@ -93,7 +111,8 @@ export default function Home() {
           </select>
         </div>
         <ChipRow label="Filter games" value={filter} onChange={(v) => setFilter(v as Filter)}
-          chips={FILTERS.map((f) => (f.value === "mine" ? { ...f, icon: <Star className="icon sm" aria-hidden /> } : f))} />
+          chips={FILTERS.map((f) => (f.value === "mine" ? { ...f, icon: <Star className="icon sm" aria-hidden /> }
+            : f.value === "watch" ? { ...f, icon: <Bell className="icon sm" aria-hidden /> } : f))} />
       </div>
 
       <input id="search" className="home-search" type="search" placeholder="Search a team, player or conference..."
@@ -105,18 +124,19 @@ export default function Home() {
       {!searching && favorites.length > 0 && myGames.length > 0 && filter === "all" && (
         <section id="my-teams">
           <div className="dayhead"><Star className="icon sm" aria-hidden fill="currentColor" /> My Teams</div>
-          {myGames.map((g) => <ScoreRow key={g.id} game={g} teams={teams} favorites={favorites} onToggle={onToggle} />)}
+          {myGames.map(row)}
         </section>
       )}
 
       <section id="games">
         {visible.length === 0 ? (
-          <p className="empty">{filter === "mine" && favorites.length === 0 ? "Star a team to pin its games here." : "No games match."}</p>
+          <p className="empty">{filter === "mine" && favorites.length === 0 ? "Star a team to pin its games here."
+            : filter === "watch" ? "Tap the bell on a game to add it to your watch list for this week." : "No games match."}</p>
         ) : (
           groupByDay(visible).map((d) => (
             <div key={d.day}>
               <div className="dayhead">{d.day}</div>
-              {d.games.map((g) => <ScoreRow key={g.id} game={g} teams={teams} favorites={favorites} onToggle={onToggle} />)}
+              {d.games.map(row)}
             </div>
           ))
         )}

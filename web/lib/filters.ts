@@ -1,23 +1,24 @@
 import type { GameSummary } from "./types";
 
-export type Filter = "all" | "top25" | "mine" | "SEC" | "Big Ten" | "Big 12" | "ACC" | "g5" | "ind";
+export type Filter = "all" | "top25" | "mine" | "watch" | "SEC" | "Big Ten" | "Big 12" | "ACC" | "g5" | "ind";
 export const P4 = ["SEC", "Big Ten", "Big 12", "ACC"];
 export const IND = "FBS Independents";
 export const POST = "post";
 
 export const FILTERS: { value: Filter; label: string }[] = [
-  { value: "all", label: "All" }, { value: "top25", label: "Top 25" }, { value: "mine", label: "My Teams" },
+  { value: "all", label: "All" }, { value: "top25", label: "Top 25" }, { value: "mine", label: "My Teams" }, { value: "watch", label: "Watch" },
   { value: "SEC", label: "SEC" }, { value: "Big Ten", label: "Big Ten" }, { value: "Big 12", label: "Big 12" },
   { value: "ACC", label: "ACC" }, { value: "g5", label: "Group of 5" }, { value: "ind", label: "Independents" },
 ];
 
 const confs = (g: GameSummary) => [g.homeConf, g.awayConf];
 
-export function passes(g: GameSummary, f: Filter, favorites: string[]): boolean {
+export function passes(g: GameSummary, f: Filter, favorites: string[], watched: number[] = []): boolean {
   switch (f) {
     case "all": return true;
     case "top25": return (g.homeRank ?? null) !== null || (g.awayRank ?? null) !== null;
     case "mine": return favorites.includes(g.home) || favorites.includes(g.away);
+    case "watch": return watched.includes(g.id);
     case "g5": return confs(g).some((c) => !!c && !P4.includes(c) && c !== IND);
     case "ind": return confs(g).includes(IND);
     default: return confs(g).includes(f);
@@ -49,4 +50,21 @@ export function weekChips(games: GameSummary[]): { value: string; label: string 
   const chips = regular.map((w) => ({ value: String(w), label: `Wk ${w}` }));
   if (games.some((g) => g.seasonType === "postseason")) chips.push({ value: POST, label: "Bowls" });
   return chips;
+}
+
+// The week and filter on the home page, kept for this browser tab so Back from a game returns to them.
+export interface HomeView { season: number; week: string; filter: Filter }
+const VIEW_KEY = "cfbm:view";
+
+export function saveView(v: HomeView): void {
+  try { sessionStorage.setItem(VIEW_KEY, JSON.stringify(v)); } catch { /* storage blocked */ }
+}
+
+export function loadView(): HomeView | null {
+  try {
+    const v = JSON.parse(sessionStorage.getItem(VIEW_KEY) ?? "null");
+    return v && typeof v.season === "number" && typeof v.week === "string" && FILTERS.some((f) => f.value === v.filter) ? v : null;
+  } catch {
+    return null;
+  }
 }

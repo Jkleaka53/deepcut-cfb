@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { Bell } from "lucide-react";
+import BackButton from "@/components/BackButton";
+import { getWatch, toggleWatch } from "@/lib/watchlist";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import AvailabilityWatch from "@/components/matchup/AvailabilityWatch";
@@ -30,6 +33,8 @@ function MatchupView() {
   const [teams, setTeams] = useState<Record<string, TeamInfo>>({});
   const [missing, setMissing] = useState(false);
   const [out, setOut] = useState<Set<number>>(new Set());
+  const [watched, setWatched] = useState<number[]>([]);
+  useEffect(() => setWatched(getWatch()), []);
 
   useEffect(() => {
     if (!season || !id) { setMissing(true); return; }
@@ -64,7 +69,15 @@ function MatchupView() {
   const gaps = topGaps(m.sections);
   return (
     <article className="matchup">
-      <p className="crumb"><Link href="/">Games</Link> · {g.seasonType === "postseason" ? `${g.season} postseason` : `${g.season} · Week ${g.week}`}</p>
+      <div className="crumbrow">
+        <BackButton />
+        <button className={`watchbtn ${watched.includes(id) ? "on" : ""}`} aria-pressed={watched.includes(id)}
+          onClick={() => setWatched(toggleWatch(id))}>
+          <Bell className="icon sm" aria-hidden fill={watched.includes(id) ? "currentColor" : "none"} />
+          {watched.includes(id) ? "Watching" : "Watch"}
+        </button>
+      </div>
+      <p className="crumb">{g.seasonType === "postseason" ? `${g.season} postseason` : `${g.season} · Week ${g.week}`}</p>
       <Hero m={m} teams={teams} />
       {banner && <WhatIfBanner text={banner} canReset={differs(out, defaults)} onReset={reset} />}
       {m.notes.map((n) => <div key={n} className="callout">{n}</div>)}

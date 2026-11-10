@@ -2,7 +2,7 @@
 import { chipText } from "@/lib/swing";
 
 import Link from "next/link";
-import { Star } from "lucide-react";
+import { Bell, Star } from "lucide-react";
 import TeamLogo from "./TeamLogo";
 import WeatherIcon from "./WeatherIcon";
 import { localKickoff } from "@/lib/format";
@@ -14,6 +14,8 @@ interface Props {
   teams: Record<string, TeamInfo>;
   favorites: string[];
   onToggle: (team: string) => void;
+  watched?: boolean;
+  onWatch?: (id: number) => void;
 }
 
 function Line({ name, rank, points, won, team, fav, onToggle }:
@@ -33,7 +35,7 @@ function Line({ name, rank, points, won, team, fav, onToggle }:
   );
 }
 
-export default function ScoreRow({ game: g, teams, favorites, onToggle }: Props) {
+export default function ScoreRow({ game: g, teams, favorites, onToggle, watched = false, onWatch }: Props) {
   const final = g.completed && g.awayPoints !== null && g.homePoints !== null;
   const mini = weatherMini(g.weather);
   const body = (
@@ -45,7 +47,16 @@ export default function ScoreRow({ game: g, teams, favorites, onToggle }: Props)
           team={teams[g.home]} fav={favorites.includes(g.home)} onToggle={() => onToggle(g.home)} />
       </div>
       <div className="sr-side">
-        <span className="sr-time">{final ? "Final" : localKickoff(g.start, g.startTimeTBD)}</span>
+        <span className="sr-timerow">
+          <span className="sr-time">{final ? "Final" : localKickoff(g.start, g.startTimeTBD)}</span>
+          {onWatch && (
+            <button className={`sr-watch ${watched ? "on" : ""}`} aria-pressed={watched}
+              aria-label={watched ? `Remove ${g.away} at ${g.home} from Watch` : `Add ${g.away} at ${g.home} to Watch`}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onWatch(g.id); }}>
+              <Bell className="icon sm" aria-hidden fill={watched ? "currentColor" : "none"} />
+            </button>
+          )}
+        </span>
         {!final && mini && (
           <span className="sr-wx"><WeatherIcon kind={g.weather?.icon} indoors={g.weather?.status === "indoors"} />{mini}</span>
         )}
