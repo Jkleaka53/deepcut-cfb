@@ -91,8 +91,10 @@ def season_profile(tg: pd.DataFrame, season: int, before_order: int | None,
 
 def blended_profile(tg: pd.DataFrame, season: int, week: int, season_type: str,
                     havoc_this: dict[str, float] | None,
-                    havoc_last: dict[str, float] | None) -> tuple[pd.DataFrame, bool]:
-    this = season_profile(tg, season, order_key(season_type, week), havoc_this)
+                    havoc_last: dict[str, float] | None,
+                    before_order: int | None = None) -> tuple[pd.DataFrame, bool]:
+    cutoff = before_order if before_order is not None else order_key(season_type, week)
+    this = season_profile(tg, season, cutoff, havoc_this)
     if season_type != "regular" or week > config.EARLY_SEASON_LAST_WEEK:
         return this, False
     w = (week - 1) / config.EARLY_SEASON_LAST_WEEK

@@ -74,3 +74,15 @@ def test_margin_orders_by_play_id_not_input_order():
 def test_order_key():
     assert order_key("postseason", 1) > order_key("regular", 15)
     assert order_key("regular", 3) == 3
+
+
+def test_game_orders_sequence_postseason_by_date():
+    from cfbm.plays import game_orders
+    games = [{"id": 1, "seasonType": "regular", "week": 14, "startDate": "2025-11-29T17:00:00.000Z"},
+             {"id": 2, "seasonType": "postseason", "week": 1, "startDate": "2025-12-20T01:00:00.000Z"},
+             {"id": 3, "seasonType": "postseason", "week": 1, "startDate": "2025-12-20T20:00:00.000Z"},
+             {"id": 4, "seasonType": "postseason", "week": 1, "startDate": "2026-01-19T00:30:00.000Z"}]
+    o = game_orders(games)
+    assert o[1] == 14
+    assert o[2] == o[3] > 100        # same day: neither sees the other
+    assert o[4] > o[2]               # title game sees earlier rounds

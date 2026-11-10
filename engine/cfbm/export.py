@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 from cfbm import config, fetch
-from cfbm.plays import normalize_plays, order_key
+from cfbm.plays import game_orders, normalize_plays, order_key
 from cfbm.qb import career, current_starter, passer_games
 from cfbm.splits import split_table, tier_lookup
 from cfbm.team_stats import TG_COLUMNS, blended_profile, fbs_only, season_profile, team_game_pass
@@ -58,6 +58,7 @@ class _Data:
         self.fbs: dict[int, set[str]] = {}
         self.games: dict[int, list[dict]] = {}
         self.havoc: dict[int, dict[str, float]] = {}
+        self.orders: dict[int, int] = {}
         tgs, passers = [], []
         for s in seasons_all:
             live = s == live_season
@@ -65,6 +66,7 @@ class _Data:
             self.games[s] = [g for g in fetch.games(client, s, live)
                              if g["homeTeam"] in self.fbs[s] or g["awayTeam"] in self.fbs[s]]
             self.havoc[s] = fetch.front7_havoc(fetch.advanced_season(client, s, live))
+            self.orders.update(game_orders(self.games[s]))
             weeks = sorted({(g["seasonType"], g["week"]) for g in self.games[s] if g.get("completed")},
                            key=lambda x: order_key(*x))
             for st, wk in weeks:
@@ -76,16 +78,21 @@ class _Data:
         self.tg = fbs_only(pd.concat(tgs, ignore_index=True) if tgs else pd.DataFrame(columns=TG_COLUMNS),
                            self.fbs)
         self.passers = pd.concat(passers, ignore_index=True) if passers else pd.DataFrame(columns=PASSER_COLUMNS)
+        # Chronological order (postseason by date, since CFBD numbers every bowl week 1).
+        for frame in (self.tg, self.passers):
+            if not frame.empty:
+                frame["order"] = [self.orders.get(gid, o) for gid, o in zip(frame["game_id"], frame["order"])]
         self.full_tiers = {s: assign_tiers(season_profile(self.tg, s, None, self.havoc.get(s)), self.fbs[s])
                            for s in seasons_all}
         self._asof: dict = {}
 
-    def as_of(self, season: int, season_type: str, week: int):
+    def as_of(self, season: int, season_type: str, week: int, order: int):
         """(profile, ranked, early) for a game: stats strictly before it, with the early-season blend."""
-        key = (season, season_type, week)
+        key = (season, season_type, week, order)
         if key not in self._asof:
             prof, early = blended_profile(self.tg, season, week, season_type,
-                                          self.havoc.get(season), self.havoc.get(season - 1))
+                                          self.havoc.get(season), self.havoc.get(season - 1),
+                                          before_order=order)
             self._asof[key] = (prof, assign_tiers(prof, self.fbs[season]), early)
         return self._asof[key]
 
@@ -125,8 +132,8 @@ def _section(d: _Data, g: dict, off: str, dfn: str, qb, ranked: pd.DataFrame, lo
 
 def matchup(d: _Data, g: dict) -> dict:
     s, st, wk = g["season"], g["seasonType"], g["week"]
-    order = order_key(st, wk)
-    prof, ranked, early = d.as_of(s, st, wk)
+    order = d.orders.get(g["id"], order_key(st, wk))
+    prof, ranked, early = d.as_of(s, st, wk, order)
     frames = {y: t for y, t in d.full_tiers.items() if y < s}
     frames[s] = ranked
     lookup = tier_lookup(frames)

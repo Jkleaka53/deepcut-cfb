@@ -17,6 +17,20 @@ def order_key(season_type: str, week: int) -> int:
     return 100 + int(week) if season_type == "postseason" else int(week)
 
 
+def game_orders(games: list[dict]) -> dict[int, int]:
+    """Chronological order per game. CFBD numbers every postseason game week 1, so the postseason
+    is sequenced by kickoff date: 100 + rank of the date. Same-day games share an order."""
+    post_days = sorted({(g.get("startDate") or "")[:10] for g in games if g.get("seasonType") == "postseason"})
+    rank = {d: i + 1 for i, d in enumerate(post_days)}
+    out = {}
+    for g in games:
+        if g.get("seasonType") == "postseason":
+            out[g["id"]] = 100 + rank[(g.get("startDate") or "")[:10]]
+        else:
+            out[g["id"]] = int(g["week"])
+    return out
+
+
 def _pre_play_margins(raw: list[dict]) -> dict[str, int]:
     """CFBD scores are post-play. Pre-play margin = the previous play's score, offense-oriented."""
     by_game: dict = {}

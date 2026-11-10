@@ -35,9 +35,10 @@ def _world():
         (1, "regular", 1, "A", "B", False, True), (2, "regular", 1, "C", "D", False, True),
         (3, "regular", 1, "E", "F", False, True), (4, "regular", 2, "A", "C", False, True),
         (5, "regular", 2, "B", "E", False, True), (6, "regular", 2, "D", "FCS U", False, True),
-        (7, "regular", 3, "F", "A", False, False), (8, "postseason", 1, "B", "C", True, False),
+        (7, "regular", 3, "F", "A", False, False), (8, "postseason", 1, "B", "C", True, True),
+        (9, "postseason", 1, "B", "A", True, False),
     ]
-    games = [{"id": i, "season": 2025, "week": wk, "seasonType": st, "startDate": f"2025-09-{wk + (20 if st == 'postseason' else 0):02d}T19:00:00.000Z",
+    games = [{"id": i, "season": 2025, "week": wk, "seasonType": st, "startDate": f"2025-09-{wk + (20 + i if st == 'postseason' else 0):02d}T19:00:00.000Z",
               "homeTeam": h, "awayTeam": a, "homeConference": "Conf" if h in FBS else None,
               "awayConference": "Conf" if a in FBS else None, "neutralSite": neu, "venue": "Stadium",
               "completed": done, "homePoints": 21 if done else None, "awayPoints": 14 if done else None}
@@ -84,9 +85,9 @@ def _load(path):
 def test_files_written(out):
     assert (out / "index.json").exists() and (out / "players.json").exists()
     games = _load(out / "2025" / "games.json")
-    assert len(games) == 8
+    assert len(games) == 9
     files = sorted(p.stem for p in (out / "2025" / "matchups").glob("*.json"))
-    assert files == ["1", "2", "3", "4", "5", "7", "8"]  # game 6 has an FCS team
+    assert files == ["1", "2", "3", "4", "5", "7", "8", "9"]  # game 6 has an FCS team
     g6 = next(g for g in games if g["id"] == 6)
     assert g6["hasBreakdown"] is False
 
@@ -157,3 +158,11 @@ def test_to_json_safe():
     v = to_json_safe({"a": float("nan"), "b": [np.float64(0.123456), np.int64(3), float("inf")], "c": None})
     assert v == {"a": None, "b": [0.1235, 3, None], "c": None}
     assert type(v["b"][1]) is int and not any(isinstance(x, float) and math.isnan(x) for x in v["b"] if x is not None)
+
+
+def test_title_game_sees_earlier_playoff_game(out):
+    # Game 9 (later postseason date) must count game 8 (B vs C) in B's protection split; CFBD numbers all bowls week 1.
+    m = _load(out / "2025" / "matchups" / "9.json")
+    b_off = next(s for s in m["sections"] if s["offenseTeam"] == "B")
+    prot = next(t for t in b_off["splits"] if t["tierSkill"] == "pass_rush")
+    assert sum(r["games"] for r in prot["rows"]) == 3  # wk1 vs A, wk2 vs E, bowl vs C
