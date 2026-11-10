@@ -43,5 +43,9 @@ class CfbdClient:
         if not resp.ok:
             raise CfbdError(f"CFBD {resp.status_code} on {path} {params}")
         data = resp.json()
-        cache_file.write_text(json.dumps(data))
+        if cacheable:
+            # Only final data is cached; an in-progress week must never be served from cache later.
+            cache_file.write_text(json.dumps(data))
+        elif cache_file.exists():
+            cache_file.unlink()
         return data
