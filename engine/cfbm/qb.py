@@ -52,10 +52,10 @@ def current_starter(passers: pd.DataFrame, team: str, season: int, before_order:
     prior = passers[(passers["team"] == team) & (passers["season"] == season) & (passers["order"] < before_order)]
     if prior.empty:
         return None
-    last_order = prior["order"].max()
-    last_primary = prior[(prior["order"] == last_order) & prior["is_primary"]]
-    if not last_primary.empty:
-        r = last_primary.iloc[0]
+    primaries = prior[prior["is_primary"]]
+    if not primaries.empty:
+        # Most recent game that had a clear starter.
+        r = primaries.sort_values("order").iloc[-1]
         return int(r["athlete_id"]), str(r["name"])
     totals = prior.groupby(["athlete_id", "name"])["attempts"].sum().sort_values(ascending=False)
     aid, name = totals.index[0]

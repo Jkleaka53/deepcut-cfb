@@ -71,3 +71,11 @@ def test_starter_falls_back_to_most_attempts_when_last_game_split():
 def test_starter_none_in_week1():
     weeks = [(1, [_box(1, "A", [(1, "QB A", 20, 30)])])]
     assert current_starter(_frame(*weeks), "A", 2025, before_order=1) is None
+
+
+def test_starter_is_latest_primary_not_season_attempts_leader():
+    # A starts 8 games, B takes over for 2, then B throws 70% in a split game -> B is still the starter.
+    weeks = [(w, [_box(w, "A", [(1, "QB A", 20, 30)])]) for w in range(1, 9)]
+    weeks += [(w, [_box(w, "A", [(2, "QB B", 20, 30)])]) for w in (9, 10)]
+    weeks += [(11, [_box(11, "A", [(2, "QB B", 14, 21), (1, "QB A", 6, 9)])])]
+    assert current_starter(_frame(*weeks), "A", 2025, before_order=12) == (2, "QB B")
