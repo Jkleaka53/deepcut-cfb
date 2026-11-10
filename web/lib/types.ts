@@ -205,6 +205,8 @@ export interface Matchup {
   venue?: Venue | null;
   availability?: Record<string, TeamAvailability>;
   swing?: Swing | null;
+  /** Record going into this game. Missing in older JSON. */
+  records?: Record<string, TeamRecord>;
 }
 
 export interface PlayerEntry {
@@ -213,4 +215,12 @@ export interface PlayerEntry {
   team: string;
   position: "QB";
   season: number;
+}
+
+export interface TeamRecord {
+  wins: number;
+  losses: number;
+  confWins: number;
+  confLosses: number;
+  conference: string | null;
 }

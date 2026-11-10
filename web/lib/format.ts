@@ -1,4 +1,4 @@
-import type { Edge, Tier } from "./types";
+import type { Edge, TeamRecord, Tier } from "./types";
 
 export function fmt(v: number | null | undefined, format: "pct" | "epa" | "yds"): string {
   if (v === null || v === undefined || Number.isNaN(v)) return "–";
@@ -43,4 +43,11 @@ export function localKickoff(iso: string, tbd = false): string {
   if (Number.isNaN(d.getTime())) return "";
   if (tbd) return `${d.toLocaleDateString(undefined, { weekday: "short", timeZone: "UTC" })} · TBA`;
   return d.toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" });
+}
+
+/** "8-2 · 5-1 SEC"; overall only for independents. */
+export function recordText(r: TeamRecord | undefined | null): string | null {
+  if (!r) return null;
+  const overall = `${r.wins}-${r.losses}`;
+  return r.conference ? `${overall} · ${r.confWins}-${r.confLosses} ${r.conference}` : overall;
 }

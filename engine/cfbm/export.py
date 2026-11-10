@@ -21,6 +21,7 @@ from cfbm.qb import career, current_starter, passer_games
 from cfbm.splits import split_table, tier_lookup
 from cfbm.team_stats import RUN_COLUMNS, TG_COLUMNS, blended_profile, fbs_only, season_profile, team_game_stats
 from cfbm.tiers import assign_tiers
+from cfbm.records import record
 from cfbm.units import RUN_TABLES, _gaps, biggest_gap, side_edge, unit_tables
 from cfbm.qb import COLUMNS as PASSER_COLUMNS
 from cfbm.skill import SKILL_COLUMNS, skill_games
@@ -259,6 +260,7 @@ def matchup(d: _Data, g: dict, model: dict | None = None) -> dict:
         "notes": notes,
         "quarterbacks": {t: (None if q is None else {"athleteId": q[0], "name": q[1]}) for t, q in qbs.items()},
         "sections": sections,
+        "records": {t: record(d.games[s], t, order, d.orders) for t in (away, home)},
         "swing": swing,
         "availability": {t: {"flags": qb_flags(d.passers, t, s, order),
                              "report": report_for((d.teams.get(s, {}).get(t) or {}).get("conference")),

@@ -352,3 +352,9 @@ def test_home_chip_skips_short_yardage():
                        "units": [{"rows": [row("epa_per_db", 60, 30)]}],
                        "runUnits": [{"rows": [row("power_success", 99, 1), row("line_yards", 50, 45)]}]}]}
     assert summary_gap(m)["key"] == "epa_per_db"
+
+
+def test_matchup_carries_team_records(out):
+    m = _load(out / "2025" / "matchups" / "7.json")  # F vs A, week 3
+    assert set(m["records"]) == {"F", "A"}
+    assert m["records"]["A"]["wins"] + m["records"]["A"]["losses"] == 2
