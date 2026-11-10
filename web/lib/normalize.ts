@@ -12,9 +12,11 @@ export function normalizeMatchup(m: Matchup): Matchup {
       awayRank: m.game.awayRank ?? null,
       weather: m.game.weather ?? null,
       gap: m.game.gap ?? null,
+      keyFactor: m.game.keyFactor ?? null,
     },
     venue: m.venue ?? null,
     availability: m.availability ?? {},
+    swing: m.swing ?? null,
     sections: m.sections.map((s) => ({
       ...s,
       edge: s.edge ?? null,
@@ -22,7 +24,7 @@ export function normalizeMatchup(m: Matchup): Matchup {
       qbVs: s.qbVs ?? null,
       units: s.units.map((u) => ({
         ...u,
-        rows: u.rows.map((r) => ({ ...r, offense: cell(r.offense), defense: cell(r.defense), explain: r.explain ?? "", hint: r.hint ?? null })),
+        rows: u.rows.map((r) => ({ ...r, offense: cell(r.offense), defense: cell(r.defense), explain: r.explain ?? "", hint: r.hint ?? null, isKey: r.isKey ?? false })),
       })),
     })),
   };

@@ -32,6 +32,7 @@ export interface GameSummary {
   awayRank?: number | null;
   weather?: Weather | null;
   gap?: { key: string; label: string; favors: string } | null;
+  keyFactor?: { label: string; favors: string } | null;
 }
 
 export type WeatherIcon = "clear" | "partly-cloudy" | "cloudy" | "fog" | "drizzle" | "rain" | "snow" | "storm";
@@ -106,6 +107,7 @@ export interface UnitRow {
   edge: Edge;
   explain?: string;
   hint?: string | null;
+  isKey?: boolean;
 }
 
 export interface UnitTable {
@@ -165,6 +167,31 @@ export interface QbVs {
   games: QbGame[];
 }
 
+export interface Driver {
+  key: string;
+  label: string;
+  offense: string;
+  defense: string;
+  edge: "even" | "slight" | "clear";
+  favors: string;
+  offRank: number;
+  defRank: number;
+  of: number;
+  cue: string;
+  score: number;
+}
+
+export interface Storyline { text: string; sample: string; kind: "storyline" }
+
+export interface OverallEdge { edge: "even" | "slight" | "clear"; team: string | null }
+
+export interface Swing {
+  drivers: Driver[];
+  storylines: Storyline[];
+  overallEdge: OverallEdge | null;
+  note: string | null;
+}
+
 export interface Matchup {
   game: GameSummary;
   earlySeason: boolean;
@@ -173,6 +200,7 @@ export interface Matchup {
   sections: Section[];
   venue?: Venue | null;
   availability?: Record<string, TeamAvailability>;
+  swing?: Swing | null;
 }
 
 export interface PlayerEntry {

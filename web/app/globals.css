@@ -294,3 +294,19 @@ details.more[open] summary::after { content: " −"; }
 .aw-group > summary { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-top: 6px solid var(--ink); }
 .aw-group .qbg-sub { color: var(--muted); opacity: 1; }
 .aw-group .qbg-btn { background: var(--ink); color: var(--card); }
+
+/* ---------- what could swing this game ---------- */
+.swing-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.swing-list li { display: flex; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.swing-n { flex: none; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; background: var(--ink); color: var(--card); font-family: var(--display); font-weight: 900; font-size: 16px; }
+.swing-body { flex: 1; min-width: 0; }
+.swing-head { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.swing-label { font-weight: 700; font-size: 15px; }
+.swing-edge { font-family: var(--display); font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 0.4px; padding: 2px 7px; border: 1px solid var(--line); }
+.swing-match { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.swing-cue { font-size: 13.5px; margin-top: 5px; }
+.swing-sub { font-family: var(--display); font-size: 15px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); margin: 14px 0 4px; }
+.story-list { list-style: none; margin: 0 0 6px; padding: 0; }
+.story-list li { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 8px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.story-list .tag { margin: 0; }
+.edge-overall { font-family: var(--display); font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; margin: 2px 0 8px; }

@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import AvailabilityWatch from "@/components/matchup/AvailabilityWatch";
 import WhatIfBanner from "@/components/matchup/WhatIfBanner";
+import SwingCard from "@/components/matchup/SwingCard";
+import { badgeFor } from "@/lib/swing";
 import { loadOut, saveOut, differs } from "@/lib/choices";
 import { applyWhatIf, defaultsOut, listedIds, whatIfText } from "@/lib/whatif";
 import EdgeCard from "@/components/matchup/EdgeCard";
@@ -69,7 +71,8 @@ function MatchupView() {
       <SectionTabs show={tabs} />
 
       <section id="preview">
-        <EdgeCard sections={m.sections} teams={teams} />
+        <SwingCard swing={m.swing} teams={teams} />
+        <EdgeCard sections={m.sections} teams={teams} overall={m.swing?.overallEdge} />
         {gaps.length > 0 && <div className="card">
           <h4>Biggest edges</h4>
           {gaps.map(({ section, row }) => (
@@ -96,7 +99,7 @@ function MatchupView() {
             {passingRows(s).map((r) => (
               <div key={r.key}>
                 <HeadToHead row={r} offense={s.offenseTeam} defense={s.defenseTeam} teams={teams}
-                  badge={r.key === s.biggestGap ? "Biggest edge" : null} />
+                  badge={badgeFor(r, s)} />
                 {r.hint && <div className="h2h-hint">{r.hint}</div>}
               </div>
             ))}

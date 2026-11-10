@@ -1,4 +1,5 @@
 "use client";
+import { chipText } from "@/lib/swing";
 
 import Link from "next/link";
 import { Star } from "lucide-react";
@@ -50,7 +51,11 @@ export default function ScoreRow({ game: g, teams, favorites, onToggle }: Props)
         )}
         {g.neutral && <span className="sr-note">Neutral site</span>}
         {!g.hasBreakdown && <span className="sr-note">FCS opponent</span>}
-        {g.gap && <span className="badge-accent">Edge: {g.gap.label} · {teams[g.gap.favors]?.abbr ?? g.gap.favors}</span>}
+        {(() => {
+          const fav = g.keyFactor?.favors ?? g.gap?.favors;
+          const text = fav ? chipText(g, teams[fav]?.abbr ?? fav) : null;
+          return text && <span className="badge-accent">{text}</span>;
+        })()}
       </div>
     </>
   );
