@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import math
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import numpy as np
@@ -158,9 +158,22 @@ def matchup(d: _Data, g: dict) -> dict:
     }
 
 
-def _current(games: list[dict]) -> tuple[int, str]:
+STALE_AFTER = timedelta(days=2)
+
+
+def _start(g: dict) -> datetime | None:
+    try:
+        return datetime.fromisoformat((g.get("startDate") or "").replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _current(games: list[dict], now: datetime) -> tuple[int, str]:
+    """Week of the next unfinished game. Games still unfinished days after kickoff (postponed or
+    cancelled) are ignored so they can't pin the site to an old week."""
     ordered = sorted(games, key=lambda g: (g.get("startDate") or "", g["id"]))
-    pending = [g for g in ordered if not g.get("completed")]
+    pending = [g for g in ordered if not g.get("completed")
+               and (_start(g) is None or _start(g) >= now - STALE_AFTER)]
     g = pending[0] if pending else ordered[-1]
     return g["week"], g["seasonType"]
 
@@ -179,10 +192,11 @@ def build(client, out_dir: Path, seasons=config.DISPLAY_SEASONS, now: datetime |
             if summ["hasBreakdown"]:
                 _write(out_dir / str(s) / "matchups" / f"{g['id']}.json", matchup(d, g))
 
-    week, st = _current(d.games[live]) if d.games[live] else (1, "regular")
+    now = now or datetime.now(timezone.utc)
+    week, st = _current(d.games[live], now) if d.games[live] else (1, "regular")
     _write(out_dir / "index.json", {
         "seasons": sorted(seasons), "currentSeason": live, "currentWeek": week, "seasonType": st,
-        "generatedAt": (now or datetime.now(timezone.utc)).isoformat(),
+        "generatedAt": now.isoformat(),
     })
 
     p = d.passers[d.passers["is_primary"] & d.passers["season"].isin(list(seasons))]

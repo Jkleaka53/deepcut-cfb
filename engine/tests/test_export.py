@@ -72,7 +72,7 @@ class WorldClient:
 def out(tmp_path_factory):
     d = tmp_path_factory.mktemp("data")
     build(WorldClient(), d, seasons=(2025,), career_start=2025,
-          now=datetime(2025, 9, 10, tzinfo=timezone.utc))
+          now=datetime(2025, 9, 2, tzinfo=timezone.utc))
     return d
 
 
@@ -166,3 +166,20 @@ def test_title_game_sees_earlier_playoff_game(out):
     b_off = next(s for s in m["sections"] if s["offenseTeam"] == "B")
     prot = next(t for t in b_off["splits"] if t["tierSkill"] == "pass_rush")
     assert sum(r["games"] for r in prot["rows"]) == 3  # wk1 vs A, wk2 vs E, bowl vs C
+
+
+def test_current_week_skips_stale_postponed_games():
+    from cfbm.export import _current
+    now = datetime(2026, 11, 10, tzinfo=timezone.utc)
+    games = [{"id": 1, "week": 4, "seasonType": "regular", "startDate": "2026-09-20T19:00:00.000Z", "completed": False},  # postponed
+             {"id": 2, "week": 10, "seasonType": "regular", "startDate": "2026-11-07T19:00:00.000Z", "completed": True},
+             {"id": 3, "week": 11, "seasonType": "regular", "startDate": "2026-11-14T19:00:00.000Z", "completed": False}]
+    assert _current(games, now) == (11, "regular")
+
+
+def test_current_week_keeps_game_awaiting_final_data():
+    from cfbm.export import _current
+    now = datetime(2026, 11, 9, 2, tzinfo=timezone.utc)  # Saturday night game not marked complete yet
+    games = [{"id": 2, "week": 10, "seasonType": "regular", "startDate": "2026-11-08T02:30:00.000Z", "completed": False},
+             {"id": 3, "week": 11, "seasonType": "regular", "startDate": "2026-11-14T19:00:00.000Z", "completed": False}]
+    assert _current(games, now) == (10, "regular")
