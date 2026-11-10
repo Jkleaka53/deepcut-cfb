@@ -1,15 +1,16 @@
 """Game of the Week: strong passing units on both sides, with a close edge picture.
 
-Score = 0.6 x strength + 0.4 x closeness (both 0-100).
+Score = 0.5 x strength + 0.35 x closeness + 0.15 x swing (all 0-100; swing = drivers / 5).
   strength  = mean national percentile of the four sides (each passing offense, each pass defense)
   closeness = 100 - mean absolute offense-minus-defense gap across both passing matchups
-Swing factors (spec) join the score after Slice 2. Rankings never enter the score; they only decide which games are eligible (see pick).
+Rankings never enter the score; they only decide which games are eligible (see pick).
 """
 
 from __future__ import annotations
 
 TOP_THIRD = 200 / 3
-W_STRENGTH, W_CLOSE = 0.6, 0.4
+W_STRENGTH, W_CLOSE, W_SWING = 0.5, 0.35, 0.15
+MAX_DRIVERS = 5
 
 
 def _sides(sec: dict) -> tuple[float | None, float | None, float | None]:
@@ -30,7 +31,12 @@ def score(m: dict) -> float | None:
         return None
     strength = sum(o + d for o, d, _ in vals) / 4
     closeness = 100 - sum(g for _, _, g in vals) / 2
-    return W_STRENGTH * strength + W_CLOSE * closeness
+    swing = 100 * min(len(_drivers(m)), MAX_DRIVERS) / MAX_DRIVERS
+    return W_STRENGTH * strength + W_CLOSE * closeness + W_SWING * swing
+
+
+def _drivers(m: dict) -> list:
+    return ((m.get("swing") or {}).get("drivers")) or []
 
 
 def why(m: dict) -> str:
@@ -61,6 +67,9 @@ def why(m: dict) -> str:
         parts.append("; ".join(edges) + ".")
     else:
         parts.append("Neither side has a clear edge on paper.")
+    n = len(_drivers(m))
+    if n:
+        parts.append(f"{n} swing factor{'s' if n != 1 else ''} in play.")
     return " ".join(parts)
 
 

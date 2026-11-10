@@ -26,6 +26,10 @@ from cfbm.qb import COLUMNS as PASSER_COLUMNS
 from cfbm.skill import SKILL_COLUMNS, skill_games
 from cfbm.watch import watch_list
 from cfbm.backup import backup_block
+from cfbm.storylines import game_facts, storylines
+from cfbm.swing import swing_block
+from cfbm.swing_data import pregame, team_games, training_frame
+from cfbm.swing_model import train
 
 
 def to_json_safe(obj):
@@ -89,6 +93,7 @@ class _Data:
         self.teams: dict[int, dict[str, dict]] = {}
         self.venues: dict[int, dict] = fetch.venues(client)
         self.positions: dict[int, str] = fetch.roster_positions(client, live_season, True)
+        self.adv = team_games([r for s in seasons_all for r in fetch.game_advanced(client, s, s == live_season)])
         self.game_by_id: dict[int, dict] = {}
         tgs, passers, skill = [], [], []
         for s in seasons_all:
@@ -177,7 +182,45 @@ def _section(d: _Data, g: dict, off: str, dfn: str, qb, ranked: pd.DataFrame, lo
     return {"offenseTeam": off, "defenseTeam": dfn, "units": [], "splits": splits, "qbVs": qb_vs}
 
 
-def matchup(d: _Data, g: dict) -> dict:
+def train_model(client, seasons) -> dict | None:
+    """Fit the swing-factor model on past seasons (cached CFBD calls). None if there isn't enough data."""
+    adv, games, fbs = [], {}, {}
+    for y in seasons:
+        adv += fetch.game_advanced(client, y, False)
+        fbs[y] = fetch.fbs_teams(client, y)
+        for g in fetch.games(client, y, False):
+            games[g["id"]] = g
+    tg = team_games(adv)
+    frame = training_frame(tg, games, fbs) if not tg.empty else None
+    if frame is None or len(frame) < config.MIN_TRAIN_GAMES:
+        return None
+    return train(frame, tg)
+
+
+def _swing(d: _Data, g: dict, order: int, qbs: dict, model: dict) -> dict:
+    s, home, away = g["season"], g["homeTeam"], g["awayTeam"]
+    fbs = d.fbs[s]
+    rows = d.adv[d.adv["team"].isin(fbs) & d.adv["opponent"].isin(fbs)]
+    sw = swing_block(model, home, away, pregame(rows, s, order), bool(g.get("neutralSite")))
+    facts, prev = {}, {}
+    for t in (away, home):
+        q = qbs.get(t)
+        ids = []
+        if q is not None:
+            c = career(d.passers, q[0])
+            c = c[(c["team"] == t) & ((c["season"] < s) | ((c["season"] == s) & (c["order"] < order)))]
+            ids = list(c["game_id"].unique())
+        facts[t] = game_facts(ids, t, d.game_by_id, d.venues)
+        earlier = [x for x in d.games[s] if t in (x["homeTeam"], x["awayTeam"]) and x.get("startDate")
+                   and d.orders.get(x["id"], 0) < order]
+        prev[t] = max((x["startDate"] for x in earlier), default=None)
+    team_loc = {t: (d.teams.get(s, {}).get(t) or {}).get("location") for t in (away, home)}
+    venue = d.venues.get(g.get("venueId")) if g.get("venueId") is not None else None
+    sw["storylines"] = storylines(g, qbs, facts, team_loc, venue, prev)
+    return sw
+
+
+def matchup(d: _Data, g: dict, model: dict | None = None) -> dict:
     s, st, wk = g["season"], g["seasonType"], g["week"]
     order = d.orders.get(g["id"], order_key(st, wk))
     prof, ranked, early = d.as_of(s, st, wk, order)
@@ -195,6 +238,12 @@ def matchup(d: _Data, g: dict) -> dict:
         sec["edge"] = side_edge(rows)
         sec["biggestGap"] = biggest_gap(rows)
         sections.append(sec)
+    swing = _swing(d, g, order, qbs, model) if model else None
+    key_rows = (swing or {}).pop("keyRows", {}) if swing else {}
+    for sec in sections:
+        for u in sec["units"]:
+            for r in u["rows"]:
+                r["isKey"] = r["key"] in key_rows.get(sec["offenseTeam"], [])
     notes = []
     if st == "postseason":
         notes.append(config.BOWL_NOTE)
@@ -206,6 +255,7 @@ def matchup(d: _Data, g: dict) -> dict:
         "notes": notes,
         "quarterbacks": {t: (None if q is None else {"athleteId": q[0], "name": q[1]}) for t, q in qbs.items()},
         "sections": sections,
+        "swing": swing,
         "availability": {t: {"flags": qb_flags(d.passers, t, s, order),
                              "report": report_for((d.teams.get(s, {}).get(t) or {}).get("conference")),
                              **_watch(d, s, order, t, dfn, qbs[t], prof, ranked, ranks)}
@@ -270,11 +320,16 @@ def venue_block(v: dict | None) -> dict | None:
 
 
 def build(client, out_dir: Path, seasons=config.DISPLAY_SEASONS, now: datetime | None = None,
-          career_start: int = config.CAREER_START_SEASON, weather_fetch=None) -> None:
+          career_start: int = config.CAREER_START_SEASON, weather_fetch=None, model: dict | None = None,
+          train_seasons=config.TRAIN_SEASONS) -> None:
     out_dir = Path(out_dir)
     live = max(seasons)
     seasons_all = list(range(min(career_start, min(seasons)), live + 1))
     d = _Data(client, seasons_all, live)
+    if model is None:
+        model = train_model(client, train_seasons)
+    if model is not None:
+        _write(out_dir / "model.json", model)
     now = now or datetime.now(timezone.utc)
     fetch_json = weather_fetch or http_fetch
     calls: dict = {}
@@ -297,12 +352,16 @@ def build(client, out_dir: Path, seasons=config.DISPLAY_SEASONS, now: datetime |
         for g, summ in zip(d.games[s], summaries):
             v = d.venues.get(g.get("venueId"))
             summ["gap"] = None
+            summ["keyFactor"] = None
             summ["weather"] = game_weather(v, g.get("startDate"), bool(g.get("startTimeTBD")),
                                            bool(g.get("completed")), now, cached_fetch)
         built = []
         for g, summ in zip(d.games[s], summaries):
             if summ["hasBreakdown"]:
-                m = matchup(d, g)
+                m = matchup(d, g, model)
+                top = (m["swing"] or {}).get("drivers") or [] if m.get("swing") else []
+                summ["keyFactor"] = m["game"]["keyFactor"] = (
+                    {"label": top[0]["label"], "favors": top[0]["favors"]} if top else None)
                 m["game"]["weather"] = summ["weather"]
                 m["venue"] = venue_block(d.venues.get(g.get("venueId")))
                 summ["gap"] = m["game"]["gap"] = summary_gap(m)

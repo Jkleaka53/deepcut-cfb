@@ -69,3 +69,7 @@ def test_side_advantage_adds_what_the_defense_allows():
     assert side_advantage(0.3, 0.25, "pass_ppa") > side_advantage(0.3, 0.0, "pass_ppa")
     # stuff rate: lower is better for the offense, and a defense that stuffs a lot hurts it
     assert side_advantage(0.1, 0.3, "stuff") < side_advantage(0.1, 0.1, "stuff")
+
+
+def test_empty_input_gives_empty_frame():
+    assert training_frame(team_games([]), {}, {}).empty

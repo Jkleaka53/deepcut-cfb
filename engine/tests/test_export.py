@@ -79,6 +79,8 @@ class WorldClient:
                      "dome": False, "grass": True, "timezone": "America/New_York"}]
         if path == "/games":
             return [g for g in self.games if g["seasonType"] == params["seasonType"] and params["year"] == 2025]
+        if path == "/stats/game/advanced":
+            return []
         if path == "/roster":
             return []
         if path == "/stats/season/advanced":
@@ -264,6 +266,31 @@ def test_availability_watch_block(out):
     assert set(b["cells"]) >= {"epa_per_db", "sack_rate"}
     assert b["qbVs"]["opponent"] == "F" and b["qbVs"]["of"] is not None
     assert m["availability"]["F"]["backup"] is None
+
+
+def test_swing_block_with_injected_model(tmp_path):
+    from cfbm.swing_data import KEYS
+    feat = {"coef": 0.5, "lo": 0.1, "hi": 0.9, "proven": True, "importance": 0.5, "volatility": 1.3,
+            "mean": 0.0, "sd": 1.0, "sideMean": 0.0, "sideSd": 0.01}
+    model = {"seasons": [2024], "games": 1000, "home": {"coef": 0.3, "lo": 0.1, "hi": 0.5},
+             "features": {k: dict(feat) for k in KEYS}}
+    build(WorldClient(), tmp_path, seasons=(2025,), career_start=2025, now=datetime(2025, 9, 20, tzinfo=timezone.utc),
+          weather_fetch=_fake_weather, model=model)
+    m = _load(tmp_path / "2025" / "matchups" / "7.json")
+    sw = m["swing"]
+    assert set(sw) == {"drivers", "storylines", "overallEdge", "note"}
+    assert len(sw["drivers"]) <= 5 and all(d["cue"] for d in sw["drivers"])
+    rows = [r for s in m["sections"] for u in s["units"] for r in u["rows"]]
+    assert all(isinstance(r["isKey"], bool) for r in rows)
+    games = _load(tmp_path / "2025" / "games.json")
+    g7 = next(g for g in games if g["id"] == 7)
+    assert g7["keyFactor"] is None or set(g7["keyFactor"]) == {"label", "favors"}
+    assert _load(tmp_path / "model.json")["games"] == 1000
+
+
+def test_no_model_means_no_swing(out):
+    m = _load(out / "2025" / "matchups" / "7.json")
+    assert m["swing"] is None
 
 
 def test_game_summary_exports_tbd_flag():

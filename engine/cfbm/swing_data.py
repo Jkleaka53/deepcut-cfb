@@ -81,8 +81,9 @@ def side_advantage(off: pd.Series | float, dfn: pd.Series | float, key: str):
 
 
 def training_frame(tg: pd.DataFrame, games_by_id: dict[int, dict], fbs_by_season: dict[int, set[str]]) -> pd.DataFrame:
-    fbs_rows = tg[[t in fbs_by_season.get(s, set()) and o in fbs_by_season.get(s, set())
-                   for s, t, o in zip(tg["season"], tg["team"], tg["opponent"])]]
+    mask = pd.Series([t in fbs_by_season.get(s, set()) and o in fbs_by_season.get(s, set())
+                      for s, t, o in zip(tg["season"], tg["team"], tg["opponent"])], index=tg.index, dtype=bool)
+    fbs_rows = tg[mask]
     pri = _priors(fbs_rows).set_index(["game_id", "team"])
     rows = []
     for gid, g in games_by_id.items():

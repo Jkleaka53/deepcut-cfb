@@ -51,3 +51,14 @@ def test_ranked_games_preferred_when_any_exist():
     ranked["game"]["homeRank"] = 1
     assert pick([STRONG_EVEN, ranked])["11"]["id"] == 6
     assert pick([STRONG_EVEN, WEAK_EVEN])["11"]["id"] == 1
+
+
+def test_swing_factors_join_the_score_and_the_why():
+    import copy
+    a = copy.deepcopy(STRONG_EVEN)
+    b = copy.deepcopy(STRONG_EVEN)
+    a["swing"] = {"drivers": [{"label": "Big plays"}] * 4}
+    b["swing"] = {"drivers": []}
+    assert score(a) > score(b)
+    assert "4 swing factors" in why(a)
+    assert "swing factor" not in why(b)

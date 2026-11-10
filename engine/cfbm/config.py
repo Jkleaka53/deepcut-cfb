@@ -7,6 +7,9 @@ GARBAGE_MARGIN = {2: 38, 3: 28, 4: 22}
 
 CAREER_START_SEASON = 2021
 DISPLAY_SEASONS = (2025, 2026)
+# Swing-factor model training seasons: about ten, skipping 2020's COVID schedules.
+TRAIN_SEASONS = tuple(y for y in range(2015, 2026) if y != 2020)
+MIN_TRAIN_GAMES = 500
 
 PRIMARY_QB_SHARE = 0.75
 MIN_SAMPLE_GAMES = 3
