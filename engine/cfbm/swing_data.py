@@ -75,8 +75,9 @@ def _priors(tg: pd.DataFrame) -> pd.DataFrame:
 
 
 def side_advantage(off: pd.Series | float, dfn: pd.Series | float, key: str):
-    """Direction-adjusted: how much the offense's average beats what the defense allows."""
-    return DIRECTION[key] * (off - dfn)
+    """Direction-adjusted matchup level: the offense's average plus what the defense allows (both
+    measure the same stat from each side; a defense that allows a high number is a weak one)."""
+    return DIRECTION[key] * (off + dfn)
 
 
 def training_frame(tg: pd.DataFrame, games_by_id: dict[int, dict], fbs_by_season: dict[int, set[str]]) -> pd.DataFrame:

@@ -61,3 +61,11 @@ def test_ties_and_fcs_dropped():
     fr2 = training_frame(tg, games, {2019: {"A", "C", "D"}})
     assert not ({7, 8} & set(fr2["game_id"])) or all(
         games[g]["homeTeam"] != "B" and games[g]["awayTeam"] != "B" for g in fr2["game_id"])
+
+
+def test_side_advantage_adds_what_the_defense_allows():
+    from cfbm.swing_data import side_advantage
+    # good offense (0.3) vs a defense that allows a lot (0.25) beats the same offense vs a stingy one (0.0)
+    assert side_advantage(0.3, 0.25, "pass_ppa") > side_advantage(0.3, 0.0, "pass_ppa")
+    # stuff rate: lower is better for the offense, and a defense that stuffs a lot hurts it
+    assert side_advantage(0.1, 0.3, "stuff") < side_advantage(0.1, 0.1, "stuff")
