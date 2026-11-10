@@ -19,7 +19,7 @@ from cfbm.weather import game_weather, http_fetch
 from cfbm.plays import game_orders, normalize_plays, order_key
 from cfbm.qb import career, current_starter, passer_games
 from cfbm.splits import split_table, tier_lookup
-from cfbm.team_stats import RUN_COLUMNS, TG_COLUMNS, blended_profile, fbs_only, season_profile, team_games
+from cfbm.team_stats import RUN_COLUMNS, TG_COLUMNS, blended_profile, fbs_only, season_profile, team_game_stats
 from cfbm.tiers import assign_tiers
 from cfbm.units import biggest_gap, side_edge, unit_tables
 from cfbm.qb import COLUMNS as PASSER_COLUMNS
@@ -109,7 +109,7 @@ class _Data:
                            key=lambda x: order_key(*x))
             for st, wk in weeks:
                 raw = fetch.plays(client, s, st, wk, self.games[s])
-                tgs.append(team_games(normalize_plays(raw, s, st, wk)))
+                tgs.append(team_game_stats(normalize_plays(raw, s, st, wk)))
                 passers.append(passer_games(fetch.player_box(client, s, st, wk, self.games[s]), s, st, wk))
                 if live:
                     for cat in ("receiving", "rushing"):

@@ -122,7 +122,7 @@ def test_fbs_only_drops_games_involving_non_fbs_teams():
 
 
 # ---- Slice 4: run phase ----
-from cfbm.team_stats import team_game_run, team_games
+from cfbm.team_stats import team_game_run, team_game_stats
 from cfbm.tiers import assign_tiers
 
 
@@ -158,10 +158,10 @@ def test_sacks_passes_and_garbage_are_not_runs():
     assert a["runs"] == 2
 
 
-def test_team_games_keeps_run_only_teams():
+def test_team_game_stats_keeps_run_only_teams():
     raw = [_rush(1, 4), _rush(2, 5, off="B", deff="A"),
            {**_raw(3, "Pass Reception", 0.3), "yardsGained": 8, "yardsToGoal": 40}]
-    tg = team_games(normalize_plays(raw, 2025, "regular", 2)).set_index("team")
+    tg = team_game_stats(normalize_plays(raw, 2025, "regular", 2)).set_index("team")
     assert tg.loc["B", "runs"] == 1 and tg.loc["B", "dropbacks"] == 0
     assert tg.loc["A", "runs"] == 1 and tg.loc["A", "dropbacks"] == 1
 

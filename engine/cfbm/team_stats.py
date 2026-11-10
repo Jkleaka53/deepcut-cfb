@@ -66,7 +66,7 @@ def team_game_run(plays: pd.DataFrame) -> pd.DataFrame:
     return g[KEYS + RUN_COLUMNS]
 
 
-def team_games(plays: pd.DataFrame) -> pd.DataFrame:
+def team_game_stats(plays: pd.DataFrame) -> pd.DataFrame:
     """Pass and run totals per team-game in one frame; a side with no plays of a kind gets zeros."""
     p, r = team_game_pass(plays), team_game_run(plays)
     if p.empty and r.empty:
