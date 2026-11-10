@@ -9,3 +9,4 @@ web/.next/
 web/out/
 .DS_Store
 engine/spike/out/
+web/public/logos/

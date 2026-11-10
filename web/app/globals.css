@@ -99,3 +99,12 @@ table.stats tr.highlight td { background: var(--accent-tint); font-weight: 700; 
 /* ---------- footer ---------- */
 footer.disclaimer { border-top: 1px solid var(--line); padding: 18px 0 28px; font-size: 12px; color: var(--muted); text-align: center; line-height: 1.6; }
 footer.disclaimer strong { color: var(--ink); }
+
+/* ---------- team logos ---------- */
+.logo-plain, .logo-tile { display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.logo-plain img, .logo-tile img { object-fit: contain; }
+.logo-tile { background: #ffffff; }
+.logo-plain .lg-dark { display: none; }
+:root[data-theme="dark"] .logo-plain .lg-light:has(+ .lg-dark) { display: none; }
+:root[data-theme="dark"] .logo-plain .lg-dark { display: block; }
+.logo-fallback { display: inline-flex; align-items: center; justify-content: center; flex: none; color: #ffffff; font-family: var(--display); font-weight: 800; letter-spacing: 0.3px; }
