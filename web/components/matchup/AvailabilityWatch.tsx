@@ -23,7 +23,7 @@ export default function AvailabilityWatch(props: Props) {
     : data?.flags[0]?.text ?? "No quarterback games on record yet this season.";
   return (
     <details className="qb-group aw-group">
-      <summary style={{ background: info?.fill ?? "var(--ink)" }}>
+      <summary style={{ borderTopColor: info?.fill ?? "var(--ink)" }}>
         <TeamLogo team={info} name={team} size={30} tile />
         <span className="qbg-text">
           <span className="qbg-team">{team} availability</span>

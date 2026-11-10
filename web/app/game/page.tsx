@@ -106,10 +106,12 @@ function MatchupView() {
       </section>
 
       <section id="qb">
+        <h3 className="sec-title">QB splits</h3>
         {m.sections.map((s) => <QbTiers key={s.offenseTeam} section={s} qb={m.quarterbacks[s.offenseTeam]?.name ?? null} teams={teams} />)}
       </section>
 
       {tabs.includes("availability") && <section id="availability">
+        <h3 className="sec-title">Availability watch</h3>
         {[g.away, g.home].map((t) => (
           <AvailabilityWatch key={t} team={t} data={m.availability?.[t]} completed={g.completed} out={out} onToggle={toggle} info={teams[t]} />
         ))}

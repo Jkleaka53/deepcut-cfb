@@ -288,3 +288,9 @@ details.more[open] summary::after { content: " −"; }
 .whatif-actions { display: inline-flex; gap: 12px; align-items: center; }
 .whatif-actions a { color: var(--accent-text); font-weight: 700; }
 .whatif-actions button { font: inherit; font-weight: 700; color: var(--accent-text); background: none; border: 1px solid var(--accent); padding: 3px 8px; cursor: pointer; }
+
+/* ---------- section separation: QB splits vs availability ---------- */
+.sec-title { font-family: var(--display); font-size: 22px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; margin: 28px 0 0; padding-top: 14px; border-top: 2px solid var(--ink); }
+.aw-group > summary { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-top: 6px solid var(--ink); }
+.aw-group .qbg-sub { color: var(--muted); opacity: 1; }
+.aw-group .qbg-btn { background: var(--ink); color: var(--card); }

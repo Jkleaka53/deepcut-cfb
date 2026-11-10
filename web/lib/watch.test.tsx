@@ -104,3 +104,13 @@ describe("banner Change link", () => {
     expect([...host.querySelectorAll("details")].every((d) => d.open)).toBe(true);
   });
 });
+
+describe("availability looks different from QB splits", () => {
+  it("header is a light card with a team-color top stripe, not a solid team fill", () => {
+    const h = html(<AvailabilityWatch team="Michigan" data={data()} completed={false} out={new Set()} onToggle={() => {}}
+      info={{ fill: "#00274c" } as never} />);
+    const summaryTag = h.match(/<summary[^>]*>/)![0];
+    expect(summaryTag).toContain("border-top-color:#00274c");
+    expect(summaryTag).not.toContain("background");
+  });
+});
