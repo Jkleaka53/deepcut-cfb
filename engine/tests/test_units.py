@@ -39,18 +39,49 @@ def test_two_tables_with_expected_rows():
 def test_unit_rows_have_rank_and_value():
     p, r = _profile()
     row = unit_tables("WVU", "Tech", p, r)[0]["rows"][0]
-    assert row["offense"] == {"value": pytest.approx(0.12), "rank": 5}   # worst protection
-    assert row["defense"] == {"value": pytest.approx(0.11), "rank": 1}   # best rush
+    assert row["offense"] == {"value": pytest.approx(0.12), "rank": 5, "pct": 0.0}   # worst protection
+    assert row["defense"] == {"value": pytest.approx(0.11), "rank": 1, "pct": 100.0}   # best rush
     assert row["edge"] == "clear-defense" and row["format"] == "pct"
 
 
 def test_offense_only_row_has_null_offense_side():
     p, r = _profile()
     row = unit_tables("WVU", "Tech", p, r)[0]["rows"][2]
-    assert row["offense"] == {"value": None, "rank": None} and row["defense"]["rank"] == 1 and row["edge"] is None
+    assert row["offense"] == {"value": None, "rank": None, "pct": None} and row["defense"]["rank"] == 1 and row["edge"] is None
 
 
 def test_unknown_team_gives_nulls_not_crash():
     p, r = _profile()
     row = unit_tables("Nobody", "Tech", p, r)[1]["rows"][0]
-    assert row["offense"] == {"value": None, "rank": None} and row["edge"] is None
+    assert row["offense"] == {"value": None, "rank": None, "pct": None} and row["edge"] is None
+
+
+from cfbm.units import biggest_gap, side_edge
+
+
+def _row(key, off, dfn):
+    return {"key": key, "offense": {"value": 1, "rank": 1, "pct": off}, "defense": {"value": 1, "rank": 1, "pct": dfn}}
+
+
+def test_plain_label_explain_and_hint():
+    p, r = _profile()
+    rows = {row["key"]: row for t in unit_tables("WVU", "Tech", p, r) for row in t["rows"]}
+    assert rows["int_rate"]["label"] == "Interceptions"
+    assert rows["int_rate"]["explain"] == "How often a pass gets picked off"
+    assert rows["int_rate"]["hint"] == "Offense: lower is better · Defense: higher is better"
+    assert rows["epa_per_db"]["hint"] == "Offense: higher is better · Defense: lower is better"
+    assert rows["front7_havoc"]["label"] == "Front-seven disruption"
+    assert 0 <= rows["int_rate"]["offense"]["pct"] <= 100
+
+
+def test_side_edge_average_gap():
+    assert side_edge([_row("a", 10, 50), _row("b", 20, 50), _row("c", 14, 50)]) == "clear-defense"
+    assert side_edge([_row("a", 55, 50), _row("b", 45, 50)]) == "even"
+    assert side_edge([]) is None
+
+
+def test_biggest_gap_and_missing_pct_skipped():
+    rows = [_row("a", 10, 50), _row("b", 20, 50), _row("c", None, 99), _row("d", 80, 50)]
+    assert biggest_gap(rows) == "a"
+    assert side_edge([_row("c", None, 99)]) is None
+    assert biggest_gap([]) is None

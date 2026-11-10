@@ -223,3 +223,11 @@ def test_weather_and_venue(out):
     assert games[4]["weather"] is None
     m = _load(out / "2025" / "matchups" / "7.json")
     assert m["venue"]["city"] == "Town" and m["venue"]["grass"] is True
+
+
+def test_section_edge_and_gap(out):
+    m = _load(out / "2025" / "matchups" / "7.json")
+    sec = m["sections"][0]
+    assert "edge" in sec and sec["biggestGap"] is not None
+    g7 = next(g for g in _load(out / "2025" / "games.json") if g["id"] == 7)
+    assert set(g7["gap"]) == {"key", "label", "favors"} and g7["gap"]["favors"] in ("A", "F")

@@ -18,7 +18,7 @@ from cfbm.qb import career, current_starter, passer_games
 from cfbm.splits import split_table, tier_lookup
 from cfbm.team_stats import TG_COLUMNS, blended_profile, fbs_only, season_profile, team_game_pass
 from cfbm.tiers import assign_tiers
-from cfbm.units import unit_tables
+from cfbm.units import biggest_gap, side_edge, unit_tables
 from cfbm.qb import COLUMNS as PASSER_COLUMNS
 
 
@@ -169,6 +169,9 @@ def matchup(d: _Data, g: dict) -> dict:
     for off, dfn in ((away, home), (home, away)):
         sec = _section(d, g, off, dfn, qbs[off], ranked, lookup, order)
         sec["units"] = unit_tables(off, dfn, prof, ranked)
+        rows = [r for u in sec["units"] for r in u["rows"]]
+        sec["edge"] = side_edge(rows)
+        sec["biggestGap"] = biggest_gap(rows)
         sections.append(sec)
     notes = []
     if st == "postseason":
@@ -202,6 +205,22 @@ def _current(games: list[dict], now: datetime) -> tuple[int, str]:
                and (_start(g) is None or _start(g) >= now - STALE_AFTER)]
     g = pending[0] if pending else ordered[-1]
     return g["week"], g["seasonType"]
+
+
+def summary_gap(m: dict) -> dict | None:
+    """The single widest rank gap across both passing sections, and which team it favors."""
+    best = None
+    for sec in m["sections"]:
+        rows = {r["key"]: r for u in sec["units"] for r in u["rows"]}
+        r = rows.get(sec.get("biggestGap"))
+        if r is None:
+            continue
+        gap = r["offense"]["pct"] - r["defense"]["pct"]
+        if best is None or abs(gap) > abs(best[0]):
+            best = (gap, r, sec["offenseTeam"] if gap > 0 else sec["defenseTeam"])
+    if best is None:
+        return None
+    return {"key": best[1]["key"], "label": best[1]["label"], "favors": best[2]}
 
 
 def venue_block(v: dict | None) -> dict | None:
@@ -238,6 +257,7 @@ def build(client, out_dir: Path, seasons=config.DISPLAY_SEASONS, now: datetime |
         summaries = [game_summary(g, d.fbs[s], ap_poll_for(polls, g["seasonType"], g["week"])) for g in d.games[s]]
         for g, summ in zip(d.games[s], summaries):
             v = d.venues.get(g.get("venueId"))
+            summ["gap"] = None
             summ["weather"] = game_weather(v, g.get("startDate"), bool(g.get("startTimeTBD")),
                                            bool(g.get("completed")), now, cached_fetch)
         for g, summ in zip(d.games[s], summaries):
@@ -245,6 +265,7 @@ def build(client, out_dir: Path, seasons=config.DISPLAY_SEASONS, now: datetime |
                 m = matchup(d, g)
                 m["game"]["weather"] = summ["weather"]
                 m["venue"] = venue_block(d.venues.get(g.get("venueId")))
+                summ["gap"] = m["game"]["gap"] = summary_gap(m)
                 _write(out_dir / str(s) / "matchups" / f"{g['id']}.json", m)
         _write(out_dir / str(s) / "games.json", summaries)
 

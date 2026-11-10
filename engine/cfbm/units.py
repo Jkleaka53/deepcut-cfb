@@ -7,21 +7,45 @@ import math
 import pandas as pd
 
 from cfbm import config
+from cfbm.tiers import METRIC_DIRECTION
 
 # (key, label, format, offense metric or None, defense metric)
 TABLES = [
     ("Pass protection vs. pass rush", [
-        ("sack_rate", "Sack rate", "pct", "off_sack_rate", "def_sack_rate"),
-        ("pd_sack_rate", "Passing-down sack rate", "pct", "off_pd_sack_rate", "def_pd_sack_rate"),
-        ("front7_havoc", "Front-seven havoc", "pct", None, "def_front7_havoc"),
+        ("sack_rate", "Sacks", "pct", "off_sack_rate", "def_sack_rate"),
+        ("pd_sack_rate", "Sacks on 3rd-and-long", "pct", "off_pd_sack_rate", "def_pd_sack_rate"),
+        ("front7_havoc", "Front-seven disruption", "pct", None, "def_front7_havoc"),
     ]),
     ("Passing offense vs. pass defense", [
-        ("epa_per_db", "EPA/dropback", "epa", "off_epa_per_db", "def_epa_per_db"),
-        ("success_rate", "Success rate", "pct", "off_success_rate", "def_success_rate"),
-        ("int_rate", "INT rate", "pct", "off_int_rate", "def_int_rate"),
-        ("pd_epa", "Passing-down EPA", "epa", "off_pd_epa", "def_pd_epa"),
+        ("epa_per_db", "Points added per pass", "epa", "off_epa_per_db", "def_epa_per_db"),
+        ("success_rate", "Successful passes", "pct", "off_success_rate", "def_success_rate"),
+        ("int_rate", "Interceptions", "pct", "off_int_rate", "def_int_rate"),
+        ("pd_epa", "Passing on 3rd-and-long", "epa", "off_pd_epa", "def_pd_epa"),
     ]),
 ]
+
+EXPLAIN = {
+    "int_rate": "How often a pass gets picked off",
+    "epa_per_db": "How much each pass play helps the offense score",
+    "success_rate": "Passes that keep the offense on schedule",
+    "sack_rate": "How often the QB goes down",
+    "pd_sack_rate": "Sacks when everyone knows a pass is coming",
+    "pd_epa": "How well the offense passes in those spots",
+    "front7_havoc": "Tackles for loss, sacks and batted passes by the front seven",
+}
+
+
+def hint(off_metric: str | None, def_metric: str | None) -> str | None:
+    word = {1: "higher", -1: "lower"}
+    o = METRIC_DIRECTION.get(off_metric) if off_metric else None
+    d = METRIC_DIRECTION.get(def_metric) if def_metric else None
+    if o == -1 and d == -1:
+        return "Lower is better for both"
+    if o is None or d is None:
+        return "Defense: lower is better" if d == -1 else None
+    if o == 1 and d == 1:
+        return None
+    return f"Offense: {word[o]} is better · Defense: {word[d]} is better"
 
 
 def _num(v) -> float | None:
@@ -47,11 +71,13 @@ def edge(off_pct: float | None, def_pct: float | None) -> str | None:
 
 def _cell(team: str, metric: str | None, profile: pd.DataFrame, ranked: pd.DataFrame):
     if metric is None or team not in profile.index or metric not in profile:
-        return {"value": None, "rank": None}, None
+        return {"value": None, "rank": None, "pct": None}, None
     value = _num(profile.loc[team, metric])
     rank = _num(ranked.loc[team, f"{metric}_rank"]) if team in ranked.index and f"{metric}_rank" in ranked else None
     pct = _num(ranked.loc[team, f"{metric}_pct"]) if team in ranked.index and f"{metric}_pct" in ranked else None
-    return {"value": value, "rank": int(rank) if rank is not None and value is not None else None}, pct
+    pct = pct if value is not None else None
+    return {"value": value, "rank": int(rank) if rank is not None and value is not None else None,
+            "pct": None if pct is None else round(pct, 1)}, pct
 
 
 def unit_tables(off_team: str, def_team: str, profile: pd.DataFrame, ranked: pd.DataFrame) -> list[dict]:
@@ -61,7 +87,35 @@ def unit_tables(off_team: str, def_team: str, profile: pd.DataFrame, ranked: pd.
         for key, label, fmt, off_metric, def_metric in rows:
             off_cell, off_pct = _cell(off_team, off_metric, profile, ranked)
             def_cell, def_pct = _cell(def_team, def_metric, profile, ranked)
-            built.append({"key": key, "label": label, "format": fmt, "offense": off_cell, "defense": def_cell,
-                          "edge": edge(off_pct, def_pct)})
+            built.append({"key": key, "label": label, "explain": EXPLAIN[key], "hint": hint(off_metric, def_metric),
+                          "format": fmt, "offense": off_cell, "defense": def_cell, "edge": edge(off_pct, def_pct)})
         out.append({"title": title, "offenseTeam": off_team, "defenseTeam": def_team, "rows": built})
     return out
+
+
+def _gaps(rows: list[dict]) -> list[tuple[float, dict]]:
+    out = []
+    for r in rows:
+        a, b = _num(r["offense"].get("pct")), _num(r["defense"].get("pct"))
+        if a is not None and b is not None:
+            out.append((a - b, r))
+    return out
+
+
+def side_edge(rows: list[dict]) -> str | None:
+    g = _gaps(rows)
+    if not g:
+        return None
+    mean = sum(x for x, _ in g) / len(g)
+    return edge(50 + mean / 2, 50 - mean / 2)
+
+
+def biggest_gap(rows: list[dict]) -> str | None:
+    g = _gaps(rows)
+    if not g:
+        return None
+    best = g[0]
+    for item in g[1:]:
+        if abs(item[0]) > abs(best[0]):
+            best = item
+    return best[1]["key"]
