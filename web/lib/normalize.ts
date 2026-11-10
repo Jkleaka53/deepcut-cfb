@@ -19,6 +19,7 @@ export function normalizeMatchup(m: Matchup): Matchup {
       ...s,
       edge: s.edge ?? null,
       biggestGap: s.biggestGap ?? null,
+      qbVs: s.qbVs ?? null,
       units: s.units.map((u) => ({
         ...u,
         rows: u.rows.map((r) => ({ ...r, offense: cell(r.offense), defense: cell(r.defense), explain: r.explain ?? "", hint: r.hint ?? null })),

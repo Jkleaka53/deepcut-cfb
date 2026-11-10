@@ -13,6 +13,7 @@ import pandas as pd
 from cfbm import colors, config, fetch
 from cfbm.availability import qb_flags, report_for
 from cfbm.gotw import pick as pick_gotw
+from cfbm.qblog import qb_log, rank_lookup
 from cfbm.ranks import ap_poll_for
 from cfbm.weather import game_weather, http_fetch
 from cfbm.plays import game_orders, normalize_plays, order_key
@@ -84,6 +85,7 @@ class _Data:
         self.orders: dict[int, int] = {}
         self.teams: dict[int, dict[str, dict]] = {}
         self.venues: dict[int, dict] = fetch.venues(client)
+        self.game_by_id: dict[int, dict] = {}
         tgs, passers = [], []
         for s in seasons_all:
             live = s == live_season
@@ -93,6 +95,7 @@ class _Data:
                              if g["homeTeam"] in self.fbs[s] or g["awayTeam"] in self.fbs[s]]
             self.havoc[s] = fetch.front7_havoc(fetch.advanced_season(client, s, live))
             self.orders.update(game_orders(self.games[s]))
+            self.game_by_id.update({g["id"]: g for g in self.games[s]})
             weeks = sorted({(g["seasonType"], g["week"]) for g in self.games[s] if g.get("completed")},
                            key=lambda x: order_key(*x))
             for st, wk in weeks:
@@ -138,15 +141,20 @@ def _before(rows: pd.DataFrame, season: int, order: int) -> pd.DataFrame:
     return rows[(rows["season"] < season) | ((rows["season"] == season) & (rows["order"] < order))]
 
 
-def _section(d: _Data, g: dict, off: str, dfn: str, qb, ranked: pd.DataFrame, lookup, order: int) -> dict:
+def _section(d: _Data, g: dict, off: str, dfn: str, qb, ranked: pd.DataFrame, lookup, order: int,
+             ranks=None) -> dict:
     s = g["season"]
     tg = _before(d.tg, s, order)
     recent = tg[tg["season"] >= s - 1]
     splits = []
+    qb_vs = None
     if qb is not None:
         aid, name = qb
         games = career(d.passers, aid)[["game_id", "team"]].drop_duplicates()
         rows = tg.merge(games, on=["game_id", "team"])
+        rank_map, sizes = ranks or ({}, {})
+        qb_vs = {"name": name, "opponent": dfn, "oppRank": rank_map.get((s, dfn)), "of": sizes.get(s),
+                 "games": qb_log(rows, d.game_by_id, rank_map)}
         splits.append(split_table(rows, "offense", "pass_defense", lookup, _tier(ranked, dfn, "pass_defense"),
                                   f"{name} vs. pass defenses by strength", name))
     splits.append(split_table(recent[recent["team"] == off], "offense", "pass_rush", lookup,
@@ -157,7 +165,7 @@ def _section(d: _Data, g: dict, off: str, dfn: str, qb, ranked: pd.DataFrame, lo
                               f"{dfn} pass defense vs. passing offenses by strength", dfn))
     splits.append(split_table(d_rows, "defense", "pass_protection", lookup, _tier(ranked, off, "pass_protection"),
                               f"{dfn} pass rush vs. pass protection by strength", dfn))
-    return {"offenseTeam": off, "defenseTeam": dfn, "units": [], "splits": splits}
+    return {"offenseTeam": off, "defenseTeam": dfn, "units": [], "splits": splits, "qbVs": qb_vs}
 
 
 def matchup(d: _Data, g: dict) -> dict:
@@ -167,11 +175,12 @@ def matchup(d: _Data, g: dict) -> dict:
     frames = {y: t for y, t in d.full_tiers.items() if y < s}
     frames[s] = ranked
     lookup = tier_lookup(frames)
+    ranks = rank_lookup(frames)
     home, away = g["homeTeam"], g["awayTeam"]
     qbs = {t: current_starter(d.passers, t, s, order) for t in (away, home)}
     sections = []
     for off, dfn in ((away, home), (home, away)):
-        sec = _section(d, g, off, dfn, qbs[off], ranked, lookup, order)
+        sec = _section(d, g, off, dfn, qbs[off], ranked, lookup, order, ranks)
         sec["units"] = unit_tables(off, dfn, prof, ranked)
         rows = [r for u in sec["units"] for r in u["rows"]]
         sec["edge"] = side_edge(rows)

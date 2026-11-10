@@ -84,7 +84,7 @@ function MatchupView() {
       </section>
 
       <section id="qb">
-        {m.sections.map((s) => <QbTiers key={s.offenseTeam} section={s} qb={m.quarterbacks[s.offenseTeam]?.name ?? null} />)}
+        {m.sections.map((s) => <QbTiers key={s.offenseTeam} section={s} qb={m.quarterbacks[s.offenseTeam]?.name ?? null} teams={teams} />)}
       </section>
 
       {tabs.includes("availability") && <section id="availability">

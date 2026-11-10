@@ -121,6 +121,28 @@ export interface Section {
   splits: SplitTable[];
   edge?: Edge;
   biggestGap?: string | null;
+  qbVs?: QbVs | null;
+}
+
+export interface QbGame {
+  gameId: number;
+  season: number;
+  opponent: string;
+  oppRank: number;
+  stage: "Bowl" | "CFP" | null;
+  result: "W" | "L" | "T" | null;
+  pf: number | null;
+  pa: number | null;
+  epaPerDb: number | null;
+  dropbacks: number;
+}
+
+export interface QbVs {
+  name: string;
+  opponent: string;
+  oppRank: number | null;
+  of: number | null;
+  games: QbGame[];
 }
 
 export interface Matchup {

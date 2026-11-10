@@ -66,6 +66,8 @@ In a game's breakdown, opponents from earlier seasons are tiered on their full-s
 
 **Pressure isn't measured directly.** True pressure rate and time to pressure come from paid charting services. The free play-by-play doesn't label scrambles or throwaways (we checked: 2 scrambles mentioned in about 21,000 runs), so the pass rush is measured by sack rate, passing-down sack rate and front-seven havoc. **Completion % over expected (CPOE)** isn't in the free data either, so it isn't shown.
 
+**QB vs. pass defenses.** The QB splits tab shows this week's opponent's pass-defense rank (EPA allowed per dropback, 1st = best), the quarterback's record in his starts against pass defenses ranked that well or better and against worse ones, and every start against an FBS team sorted by that opponent's rank, with a line where this week's opponent falls. Past seasons use each opponent's full-season rank; the current season uses the rank up to kickoff. "Record" is his team's result in games he started. Points per pass is weighted by dropbacks. The team unit splits (pass protection, pass defense, pass rush) follow in their own cards.
+
 **Starting quarterback.** A QB is a game's primary passer when he throws at least 75% of his team's attempts. Games where QBs split time count for nobody. The matchup page uses the primary passer from the team's most recent game. Week-1 games have no starter yet.
 
 **Windows.** QB splits cover his whole FBS career since 2021, across schools, joined on the player's CFBD id. Team-unit splits cover the game's season and the one before it.

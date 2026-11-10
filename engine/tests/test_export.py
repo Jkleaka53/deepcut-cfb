@@ -253,3 +253,15 @@ def test_gotw_json(out):
     assert isinstance(g, dict)
     for v in g.values():
         assert set(v) == {"id", "why"} and isinstance(v["id"], int)
+
+
+def test_qb_vs_block(out):
+    m = _load(out / "2025" / "matchups" / "7.json")
+    for sec in m["sections"]:
+        qv = sec["qbVs"]
+        if m["quarterbacks"][sec["offenseTeam"]] is None:
+            assert qv is None
+            continue
+        assert set(qv) == {"name", "opponent", "oppRank", "of", "games"}
+        assert qv["opponent"] == sec["defenseTeam"]
+        assert all({"opponent", "oppRank", "result", "epaPerDb"} <= set(r) for r in qv["games"])
