@@ -14,3 +14,7 @@ Pulled 2025 regular-season play-by-play for weeks 5–7 (56,188 plays), week 5 p
 8. **Call budget.** One `/plays` call returns a whole week (about 18k plays). The initial backfill for 2021–2026 is about 16 play calls + 16 box calls + 2 games + 1 FBS list + 1 season advanced per season, roughly 36 × 6 ≈ 220 calls. Weekly refreshes after that take about 5 calls. This fits comfortably under the free tier.
 
 Other useful facts: box score passing stats are `C/ATT, YDS, AVG, TD, INT, QBR` with athlete `id` and `name`. Games carry `neutralSite`, `venue`, `attendance`, `homeClassification`/`awayClassification`, `completed` and `startDate`. There are 136 FBS teams in 2025.
+
+## First full build (Task 10)
+
+The build covered 2021–2026 in 201 CFBD calls and about 4.5 minutes. It wrote 934 + 888 games and 808 + 761 matchups (2025 / 2026), 19 MB of JSON in total. The second run hits the cache, so only the current season's in-progress weeks get refetched.
