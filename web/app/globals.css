@@ -108,3 +108,27 @@ footer.disclaimer strong { color: var(--ink); }
 :root[data-theme="dark"] .logo-plain .lg-light:has(+ .lg-dark) { display: none; }
 :root[data-theme="dark"] .logo-plain .lg-dark { display: block; }
 .logo-fallback { display: inline-flex; align-items: center; justify-content: center; flex: none; color: #ffffff; font-family: var(--display); font-weight: 800; letter-spacing: 0.3px; }
+
+/* ---------- home scoreboard ---------- */
+.filters { position: sticky; top: 54px; z-index: 15; background: var(--bg); padding: 8px 0 6px; margin: 0 -14px; }
+.chiprow { display: flex; gap: 6px; overflow-x: auto; padding: 0 14px 6px; scrollbar-width: none; }
+.chiprow::-webkit-scrollbar { display: none; }
+.home-search { margin: 10px 0 4px; }
+.dayhead { margin: 18px 0 6px; font-family: var(--display); font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); }
+.scorerow { display: flex; justify-content: space-between; gap: 10px; padding: 10px 12px; background: var(--card); border: 1px solid var(--line); border-top: 0; text-decoration: none; color: var(--ink); }
+.dayhead + .scorerow, .scorerow:first-child { border-top: 1px solid var(--line); }
+a.scorerow:hover { background: var(--chip); }
+.sr-teams { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
+.sr-line { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.sr-rank { color: var(--muted); font-size: 13px; font-weight: 700; }
+.sr-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sr-line.won .sr-name, .sr-line.won .sr-pts { font-weight: 800; }
+.sr-pts { margin-left: auto; font-size: 18px; font-weight: 700; }
+.sr-star { background: none; border: 0; padding: 4px; color: var(--muted); display: inline-flex; }
+.sr-star.on { color: var(--accent); }
+.sr-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right; flex: 0 1 auto; max-width: 42%; font-size: 12px; }
+.sr-side .badge-accent { white-space: normal; text-align: right; line-height: 1.25; }
+.sr-time { font-family: var(--display); font-size: 15px; font-weight: 700; text-transform: uppercase; }
+.sr-wx { display: inline-flex; gap: 4px; align-items: center; color: var(--muted); }
+.sr-note { color: var(--muted); }
+.empty { color: var(--muted); padding: 10px 0; }
