@@ -50,7 +50,7 @@ export default function ScoreRow({ game: g, teams, favorites, onToggle }: Props)
         )}
         {g.neutral && <span className="sr-note">Neutral site</span>}
         {!g.hasBreakdown && <span className="sr-note">FCS opponent</span>}
-        {g.gap && <span className="badge-accent">Gap: {g.gap.label}</span>}
+        {g.gap && <span className="badge-accent">Edge: {g.gap.label} · {teams[g.gap.favors]?.abbr ?? g.gap.favors}</span>}
       </div>
     </>
   );
