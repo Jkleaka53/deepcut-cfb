@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from cfbm import colors, config, fetch
+from cfbm.ranks import ap_poll_for
 from cfbm.plays import game_orders, normalize_plays, order_key
 from cfbm.qb import career, current_starter, passer_games
 from cfbm.splits import split_table, tier_lookup
@@ -55,7 +56,8 @@ def team_entries(info: dict[str, dict], fbs: set[str]) -> list[dict]:
     return out
 
 
-def game_summary(g: dict, fbs: set[str]) -> dict:
+def game_summary(g: dict, fbs: set[str], ranks: dict[str, int] | None = None) -> dict:
+    ranks = ranks or {}
     return {
         "id": g["id"], "season": g["season"], "week": g["week"], "seasonType": g["seasonType"],
         "start": g.get("startDate"), "home": g["homeTeam"], "away": g["awayTeam"],
@@ -63,6 +65,7 @@ def game_summary(g: dict, fbs: set[str]) -> dict:
         "neutral": bool(g.get("neutralSite")), "venue": g.get("venue"), "completed": bool(g.get("completed")),
         "homePoints": g.get("homePoints"), "awayPoints": g.get("awayPoints"),
         "hasBreakdown": g["homeTeam"] in fbs and g["awayTeam"] in fbs,
+        "homeRank": ranks.get(g["homeTeam"]), "awayRank": ranks.get(g["awayTeam"]),
     }
 
 
@@ -103,6 +106,10 @@ class _Data:
         self.full_tiers = {s: assign_tiers(season_profile(self.tg, s, None, self.havoc.get(s)), self.fbs[s])
                            for s in seasons_all}
         self._asof: dict = {}
+        self.polls: dict[int, list[dict]] = {}
+
+    def ranks_for(self, g: dict) -> dict[str, int]:
+        return ap_poll_for(self.polls.get(g["season"], []), g["seasonType"], g["week"])
 
     def as_of(self, season: int, season_type: str, week: int, order: int):
         """(profile, ranked, early) for a game: stats strictly before it, with the early-season blend."""
@@ -168,7 +175,7 @@ def matchup(d: _Data, g: dict) -> dict:
     if early:
         notes.append(config.EARLY_NOTE)
     return {
-        "game": game_summary(g, d.fbs[s]),
+        "game": game_summary(g, d.fbs[s], d.ranks_for(g)),
         "earlySeason": early,
         "notes": notes,
         "quarterbacks": {t: (None if q is None else {"athleteId": q[0], "name": q[1]}) for t, q in qbs.items()},
@@ -205,7 +212,8 @@ def build(client, out_dir: Path, seasons=config.DISPLAY_SEASONS, now: datetime |
 
     for s in seasons:
         _write(out_dir / str(s) / "teams.json", team_entries(d.teams[s], d.fbs[s]))
-        summaries = [game_summary(g, d.fbs[s]) for g in d.games[s]]
+        polls = d.polls[s] = fetch.rankings(client, s, s == live)
+        summaries = [game_summary(g, d.fbs[s], ap_poll_for(polls, g["seasonType"], g["week"])) for g in d.games[s]]
         _write(out_dir / str(s) / "games.json", summaries)
         for g, summ in zip(d.games[s], summaries):
             if summ["hasBreakdown"]:

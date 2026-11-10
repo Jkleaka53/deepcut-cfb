@@ -49,3 +49,10 @@ def team_info(client, season: int, live: bool = False) -> dict[str, dict]:
 
 def venues(client) -> dict[int, dict]:
     return {int(v["id"]): v for v in client.get("/venues", {}) if v.get("id") is not None}
+
+
+def rankings(client, season: int, live: bool) -> list[dict]:
+    out: list[dict] = []
+    for st in ("regular", "postseason"):
+        out += client.get("/rankings", {"year": season, "seasonType": st}, cacheable=not live)
+    return out

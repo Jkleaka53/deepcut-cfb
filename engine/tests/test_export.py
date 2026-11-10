@@ -60,6 +60,9 @@ class WorldClient:
                      "alternateColor": "#002855", "logos": [f"https://x/{t}.png", f"https://x/d/{t}.png"]}
                     for i, t in enumerate(FBS)] + [{"id": 999, "school": "FCS U", "abbreviation": "FU",
                                                     "conference": "X", "color": None, "alternateColor": None, "logos": None}]
+        if path == "/rankings":
+            return [{"season": 2025, "seasonType": "regular", "week": 3,
+                     "polls": [{"poll": "AP Top 25", "ranks": [{"rank": 7, "school": "A"}]}]}]
         if path == "/venues":
             return [{"id": 1, "name": "Stadium", "city": "Town", "state": "ST", "latitude": 40.0, "longitude": -80.0,
                      "dome": False, "grass": True, "timezone": "America/New_York"}]
@@ -159,7 +162,8 @@ def test_game_summary_shape():
     s = game_summary(g, set(FBS))
     assert s == {"id": 1, "season": 2025, "week": 1, "seasonType": "regular", "start": g["startDate"], "home": "A",
                  "away": "B", "homeConf": "Conf", "awayConf": "Conf", "neutral": False, "venue": "Stadium",
-                 "completed": True, "homePoints": 21, "awayPoints": 14, "hasBreakdown": True}
+                 "completed": True, "homePoints": 21, "awayPoints": 14, "hasBreakdown": True,
+                 "homeRank": None, "awayRank": None}
 
 
 def test_to_json_safe():
@@ -199,3 +203,8 @@ def test_teams_json(out):
     t = teams[0]
     assert set(t) == {"school", "id", "abbr", "conference", "fill", "textLight", "textDark", "logo", "logoDark"}
     assert t["fill"] == "#002855" and t["logo"].endswith(".png")
+
+
+def test_game_ranks(out):
+    g7 = next(g for g in _load(out / "2025" / "games.json") if g["id"] == 7)
+    assert g7["awayRank"] == 7 and g7["homeRank"] is None
