@@ -25,7 +25,7 @@ def rank_against(value: float | None, field: pd.Series, direction: int) -> tuple
     n = len(vals)
     if n == 0:
         return None, None
-    rank = 1 + int((vals > value * direction).sum())
+    rank = min(n, 1 + int((vals > value * direction).sum()))
     pct = (n - rank) / (n - 1) * 100 if n > 1 else 50.0
     return rank, round(min(100.0, max(0.0, pct)), 1)
 

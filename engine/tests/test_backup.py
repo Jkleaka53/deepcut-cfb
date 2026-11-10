@@ -15,7 +15,7 @@ def test_rank_against_lower_better():
 
 
 def test_rank_against_worse_than_all_clamps():
-    assert rank_against(-1.0, pd.Series([0.3, 0.2, 0.1]), 1) == (4, 0.0)
+    assert rank_against(-1.0, pd.Series([0.3, 0.2, 0.1]), 1) == (3, 0.0)
 
 
 def test_rank_against_none():
@@ -54,3 +54,7 @@ def test_block_no_starts_all_null():
     assert b["games"] == 0 and b["smallSample"] is True
     assert all(c == {"value": None, "rank": None, "pct": None} for c in b["cells"].values())
     assert b["qbVs"]["games"] == []
+
+
+def test_rank_never_exceeds_field_size():
+    assert rank_against(-1.0, pd.Series([0.3, 0.2, 0.1]), 1)[0] == 3

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyWhatIf, biggestGap, defaultsOut, edge, sideEdge } from "./whatif";
+import { applyWhatIf, biggestGap, defaultsOut, edge, listedIds, sideEdge } from "./whatif";
 import type { Matchup, UnitRow } from "./types";
 
 const row = (key: string, op: number | null, dp: number | null): UnitRow => ({
@@ -93,5 +93,21 @@ describe("defaultsOut without a backup", () => {
     input.availability!.Michigan.backup = null;
     input.availability!.Michigan.players![0].noStatsLastGame = true;
     expect([...defaultsOut(input)]).toEqual([20]);
+  });
+});
+
+describe("review fixes", () => {
+  it("starter Out removes the starter's own split table", () => {
+    const input = m();
+    const t = (subject: string) => ({ title: `${subject} t`, subject, tierSkill: "pass_defense" as const, seasons: [2026],
+      highlightTier: 1 as const, metricLabels: {}, metricFormats: {}, rows: [] });
+    input.sections[0].splits = [t("Tommy Carr"), t("Michigan")];
+    expect(applyWhatIf(input, new Set([10])).sections[0].splits.map((s) => s.subject)).toEqual(["Michigan"]);
+  });
+  it("listedIds leaves out a starter with no backup, so a stale save can't lock him Out", () => {
+    const input = m();
+    expect([...listedIds(input)].sort()).toEqual([10, 11, 20]);
+    input.availability!.Michigan.backup = null;
+    expect([...listedIds(input)].sort()).toEqual([11, 20]);
   });
 });

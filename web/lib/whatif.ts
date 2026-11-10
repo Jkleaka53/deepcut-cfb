@@ -36,10 +36,10 @@ const EMPTY: Cell = { value: null, rank: null, pct: null };
 
 /** The matchup as it reads with the given players Out. Only a starting QB set Out changes numbers. */
 export function applyWhatIf(m: Matchup, out: Set<number>): Matchup {
-  const swaps = new Map<string, NonNullable<NonNullable<Matchup["availability"]>[string]["backup"]>>();
+  const swaps = new Map<string, NonNullable<NonNullable<Matchup["availability"]>[string]["backup"]> & { starterName: string }>();
   for (const [team, a] of Object.entries(m.availability ?? {})) {
     const starter = a.players?.find((p) => p.role === "QB");
-    if (starter && out.has(starter.athleteId) && a.backup) swaps.set(team, a.backup);
+    if (starter && out.has(starter.athleteId) && a.backup) swaps.set(team, { ...a.backup, starterName: starter.name });
   }
   if (!swaps.size) return m;
   const quarterbacks = { ...m.quarterbacks };
@@ -56,7 +56,8 @@ export function applyWhatIf(m: Matchup, out: Set<number>): Matchup {
       }),
     }));
     const rows = units.flatMap((u) => u.rows);
-    return { ...s, units, edge: sideEdge(rows), biggestGap: biggestGap(rows), qbVs: b.qbVs };
+    const splits = s.splits.filter((t) => t.subject !== b.starterName);
+    return { ...s, units, splits, edge: sideEdge(rows), biggestGap: biggestGap(rows), qbVs: b.qbVs };
   });
   return { ...m, quarterbacks, sections };
 }
@@ -82,4 +83,11 @@ export function whatIfText(m: Matchup, out: Set<number>, defaults: Set<number>):
     }
   }
   return parts.length ? `What-if: ${parts.join(", ")}` : null;
+}
+
+/** Players whose saved choice is honored. A starter with no backup can't be switched, so a stale saved
+ *  "Out" for him is ignored. */
+export function listedIds(m: Matchup): Set<number> {
+  return new Set(Object.values(m.availability ?? {}).flatMap((a) => (a.players ?? [])
+    .filter((p) => p.role !== "QB" || a.backup).map((p) => p.athleteId)));
 }

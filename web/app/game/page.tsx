@@ -6,7 +6,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import AvailabilityWatch from "@/components/matchup/AvailabilityWatch";
 import WhatIfBanner from "@/components/matchup/WhatIfBanner";
 import { loadOut, saveOut, differs } from "@/lib/choices";
-import { applyWhatIf, defaultsOut, whatIfText } from "@/lib/whatif";
+import { applyWhatIf, defaultsOut, listedIds, whatIfText } from "@/lib/whatif";
 import EdgeCard from "@/components/matchup/EdgeCard";
 import HeadToHead from "@/components/matchup/HeadToHead";
 import Hero from "@/components/matchup/Hero";
@@ -35,8 +35,7 @@ function MatchupView() {
     setM(null);
     loadMatchup(season, id).then((x) => {
       const nm = normalizeMatchup(x);
-      const listed = new Set(Object.values(nm.availability ?? {}).flatMap((a) => (a.players ?? []).map((p) => p.athleteId)));
-      setOut(nm.game.completed ? new Set() : loadOut(season, id, defaultsOut(nm), listed));
+      setOut(nm.game.completed ? new Set() : loadOut(season, id, defaultsOut(nm), listedIds(nm)));
       setM(nm);
     }).catch(() => setMissing(true));
     loadTeams(season).then(setTeams);
