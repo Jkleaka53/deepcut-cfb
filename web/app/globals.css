@@ -253,3 +253,17 @@ details.more[open] summary::after { content: " −"; }
 :root[data-theme="dark"] .res.L { color: #f97066; }
 .qb-note { margin: 10px 0 0; line-height: 1.45; }
 .split-card h3 { margin-top: 0; font-size: 15px; color: var(--muted); }
+
+/* ---------- collapsible QB split groups ---------- */
+.qb-group { margin: 12px 0 0; }
+.qb-group > summary { list-style: none; cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 12px 10px; color: #ffffff; }
+.qb-group > summary::-webkit-details-marker { display: none; }
+.qbg-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.qbg-team { font-family: var(--display); font-size: 18px; font-weight: 800; text-transform: uppercase; line-height: 1.1; }
+.qbg-sub { font-size: 12px; opacity: 0.92; line-height: 1.35; }
+.qbg-btn { flex: 1 0 100%; background: #ffffff; color: #0b1220; font-family: var(--display); font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; padding: 7px 8px; display: flex; justify-content: center; }
+.qbg-btn > span { display: inline-flex; gap: 3px; align-items: center; }
+.qb-group .when-open, .qb-group[open] .when-closed { display: none; }
+.qb-group[open] .when-open { display: inline-flex; }
+.qbg-body { border: 1px solid var(--line); border-top: 0; padding: 0 10px 12px; background: var(--bg); }
+.qbg-body > .card:first-child { margin-top: 10px; }
