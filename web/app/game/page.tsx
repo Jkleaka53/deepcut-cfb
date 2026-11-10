@@ -19,11 +19,39 @@ import QbTiers from "@/components/matchup/QbTiers";
 import SectionTabs from "@/components/matchup/SectionTabs";
 import TeamLogo from "@/components/TeamLogo";
 import { loadMatchup, loadTeams } from "@/lib/data";
-import { passingRows, topGaps, visibleTabs } from "@/lib/matchup";
+import { passingRows, runView, topGaps, visibleTabs } from "@/lib/matchup";
 import { normalizeMatchup } from "@/lib/normalize";
-import type { Matchup, TeamInfo } from "@/lib/types";
+import type { Matchup, Section, TeamInfo } from "@/lib/types";
 
 const LEGEND = "Rank is out of 138 FBS teams (1st = best for that side). More color in the bar = stronger.";
+
+/** One card per offense: its passing or running rows against the other team's defense. */
+function PhaseCards({ sections, verb, teams }: { sections: Section[]; verb: "passes" | "runs"; teams: Record<string, TeamInfo> }) {
+  return (
+    <>
+      {sections.map((s) => (
+        <div key={s.offenseTeam} className="card flush">
+          <div className="pg-head">
+            <div style={{ background: teams[s.offenseTeam]?.fill ?? "var(--ink)" }}>
+              <TeamLogo team={teams[s.offenseTeam]} name={s.offenseTeam} size={18} tile />{s.offenseTeam} offense
+            </div>
+            <div style={{ background: teams[s.defenseTeam]?.fill ?? "var(--ink)" }}>
+              {s.defenseTeam} defense<TeamLogo team={teams[s.defenseTeam]} name={s.defenseTeam} size={18} tile />
+            </div>
+          </div>
+          <h4 className="pg-title">When {s.offenseTeam} {verb}</h4>
+          {passingRows(s).map((r) => (
+            <div key={r.key}>
+              <HeadToHead row={r} offense={s.offenseTeam} defense={s.defenseTeam} teams={teams} badge={badgeFor(r, s)} />
+              {r.hint && <div className="h2h-hint">{r.hint}</div>}
+            </div>
+          ))}
+          <p className="muted small legend">{LEGEND}</p>
+        </div>
+      ))}
+    </>
+  );
+}
 
 function MatchupView() {
   const params = useSearchParams();
@@ -88,9 +116,9 @@ function MatchupView() {
         <EdgeCard sections={m.sections} teams={teams} overall={m.swing?.overallEdge} />
         {gaps.length > 0 && <div className="card">
           <h4>Biggest edges</h4>
-          {gaps.map(({ section, row }) => (
+          {gaps.map(({ section, row, phase }) => (
             <div key={`${section.offenseTeam}-${row.key}`}>
-              <div className="h2h-context">When {section.offenseTeam} passes</div>
+              <div className="h2h-context">When {section.offenseTeam} {phase === "run" ? "runs" : "passes"}</div>
               <HeadToHead row={row} offense={section.offenseTeam} defense={section.defenseTeam} teams={teams} />
             </div>
           ))}
@@ -98,28 +126,12 @@ function MatchupView() {
       </section>
 
       <section id="passing">
-        {m.sections.map((s) => (
-          <div key={s.offenseTeam} className="card flush">
-            <div className="pg-head">
-              <div style={{ background: teams[s.offenseTeam]?.fill ?? "var(--ink)" }}>
-                <TeamLogo team={teams[s.offenseTeam]} name={s.offenseTeam} size={18} tile />{s.offenseTeam} offense
-              </div>
-              <div style={{ background: teams[s.defenseTeam]?.fill ?? "var(--ink)" }}>
-                {s.defenseTeam} defense<TeamLogo team={teams[s.defenseTeam]} name={s.defenseTeam} size={18} tile />
-              </div>
-            </div>
-            <h4 className="pg-title">When {s.offenseTeam} passes</h4>
-            {passingRows(s).map((r) => (
-              <div key={r.key}>
-                <HeadToHead row={r} offense={s.offenseTeam} defense={s.defenseTeam} teams={teams}
-                  badge={badgeFor(r, s)} />
-                {r.hint && <div className="h2h-hint">{r.hint}</div>}
-              </div>
-            ))}
-            <p className="muted small legend">{LEGEND}</p>
-          </div>
-        ))}
+        <PhaseCards sections={m.sections} verb="passes" teams={teams} />
       </section>
+
+      {tabs.includes("running") && <section id="running">
+        <PhaseCards sections={m.sections.map(runView).filter((s): s is Section => s !== null)} verb="runs" teams={teams} />
+      </section>}
 
       <section id="qb">
         <h3 className="sec-title">QB splits</h3>

@@ -101,7 +101,7 @@ export interface Cell { value: number | null; rank: number | null; pct?: number 
 export interface UnitRow {
   key: string;
   label: string;
-  format: "pct" | "epa";
+  format: "pct" | "epa" | "yds";
   offense: Cell;
   defense: Cell;
   edge: Edge;
@@ -144,6 +144,10 @@ export interface Section {
   edge?: Edge;
   biggestGap?: string | null;
   qbVs?: QbVs | null;
+  /** Run phase (Slice 4). Missing in older JSON. */
+  runUnits?: UnitTable[] | null;
+  runEdge?: Edge;
+  runBiggestGap?: string | null;
 }
 
 export interface QbGame {

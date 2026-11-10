@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 export const TABS = [
-  { id: "preview", label: "Preview" }, { id: "passing", label: "Passing game" },
+  { id: "preview", label: "Preview" }, { id: "passing", label: "Passing game" }, { id: "running", label: "Running game" },
   { id: "qb", label: "QB splits" }, { id: "availability", label: "Availability" },
 ];
 

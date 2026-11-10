@@ -1,8 +1,9 @@
 import type { Edge, Tier } from "./types";
 
-export function fmt(v: number | null | undefined, format: "pct" | "epa"): string {
+export function fmt(v: number | null | undefined, format: "pct" | "epa" | "yds"): string {
   if (v === null || v === undefined || Number.isNaN(v)) return "–";
   if (format === "pct") return `${(v * 100).toFixed(1)}%`;
+  if (format === "yds") return `${v.toFixed(1)} yds`;
   const s = Math.abs(v).toFixed(2);
   return v < 0 ? `−${s}` : `+${s}`;
 }
