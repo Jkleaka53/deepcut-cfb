@@ -78,6 +78,10 @@ In a game's breakdown, opponents from earlier seasons are tiered on their full-s
 
 This project shows no betting lines, spreads, odds, win probabilities or predicted scores, and it isn't meant for wagering of any kind. It's a personal statistics project.
 
+## License
+
+Code: [MIT](LICENSE). Football data belongs to its sources and is used under [CollegeFootballData.com](https://collegefootballdata.com)'s terms.
+
 ## Credits
 
 Data: [CollegeFootballData.com](https://collegefootballdata.com).
