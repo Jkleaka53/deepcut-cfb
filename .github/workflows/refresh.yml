@@ -4,6 +4,8 @@ on:
   schedule:
     - cron: "0 11 * * 0"   # Sunday 11:00 UTC, after Saturday's games
     - cron: "0 11 * * 3"   # Wednesday 11:00 UTC, midweek games and schedule changes
+    - cron: "0 22 * * 5"   # Friday 22:00 UTC, fresher kickoff weather
+    - cron: "0 12 * * 6"   # Saturday 12:00 UTC, game-day kickoff weather
   workflow_dispatch:
 
 permissions:
