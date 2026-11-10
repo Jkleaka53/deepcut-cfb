@@ -1,4 +1,4 @@
-import type { Section, UnitRow } from "./types";
+import type { Matchup, Section, UnitRow } from "./types";
 
 const gap = (r: UnitRow): number | null => {
   const a = r.offense.pct, b = r.defense.pct;
@@ -30,4 +30,11 @@ export function edgeLine(section: Section): { text: string; team: string | null 
   if (e === "even") return { text: `${off} passes → Even`, team: null };
   if (e.endsWith("defense")) return { text: `${off} passes → ${def} D · ${size(e)}`, team: def };
   return { text: `${off} passes → ${off} offense · ${size(e)}`, team: off };
+}
+
+/** Tabs to show: Availability only when the data carries it (old-format JSON doesn't). */
+export function visibleTabs(m: Matchup): string[] {
+  const tabs = ["preview", "passing", "qb"];
+  if (m.availability && Object.keys(m.availability).length > 0) tabs.push("availability");
+  return tabs;
 }

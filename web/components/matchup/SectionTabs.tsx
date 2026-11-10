@@ -7,13 +7,14 @@ export const TABS = [
   { id: "qb", label: "QB splits" }, { id: "availability", label: "Availability" },
 ];
 
-export default function SectionTabs() {
+export default function SectionTabs({ show }: { show: string[] }) {
+  const tabs = TABS.filter((t) => show.includes(t.id));
   const [active, setActive] = useState("preview");
   useEffect(() => {
     const onScroll = () => {
       const bar = document.querySelector(".tabs")?.getBoundingClientRect().bottom ?? 0;
       let cur = TABS[0].id;
-      for (const t of TABS) {
+      for (const t of tabs) {
         const el = document.getElementById(t.id);
         if (el && el.getBoundingClientRect().top <= bar + 4) cur = t.id;
       }
@@ -22,10 +23,10 @@ export default function SectionTabs() {
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [show.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <nav className="tabs" aria-label="Sections">
-      {TABS.map((t) => (
+      {tabs.map((t) => (
         <a key={t.id} href={`#${t.id}`} className={active === t.id ? "on" : ""} aria-current={active === t.id ? "true" : undefined}
           onClick={(e) => { e.preventDefault(); document.getElementById(t.id)?.scrollIntoView({ behavior: "auto" }); setActive(t.id); }}>
           {t.label}

@@ -53,6 +53,7 @@ def team_entries(info: dict[str, dict], fbs: set[str]) -> list[dict]:
             "school": school, "id": t.get("id"), "abbr": t.get("abbreviation") or school[:4].upper(),
             "conference": t.get("conference"), "fill": colors.fill_for_white_text(c, alt),
             "textLight": colors.text_on("#ffffff", c, alt), "textDark": colors.text_on("#13171c", c, alt),
+            "barDark": colors.bar_on("#13171c", c),
             "logo": logos[0] if len(logos) > 0 else None, "logoDark": logos[1] if len(logos) > 1 else None,
         })
     return out
@@ -68,6 +69,7 @@ def game_summary(g: dict, fbs: set[str], ranks: dict[str, int] | None = None) ->
         "homePoints": g.get("homePoints"), "awayPoints": g.get("awayPoints"),
         "hasBreakdown": g["homeTeam"] in fbs and g["awayTeam"] in fbs,
         "homeRank": ranks.get(g["homeTeam"]), "awayRank": ranks.get(g["awayTeam"]),
+        "startTimeTBD": bool(g.get("startTimeTBD")),
     }
 
 

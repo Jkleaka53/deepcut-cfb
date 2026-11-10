@@ -5,6 +5,10 @@ interface Props { row: UnitRow; offense: string; defense: string; teams: Record<
 
 const colorVars = (t?: TeamInfo) => ({ "--tl": t?.textLight ?? "var(--ink)", "--td": t?.textDark ?? "var(--ink)" }) as React.CSSProperties;
 
+/** Light theme uses the team fill; dark theme uses barDark (the team hue lightened to show on the dark card). */
+const barVars = (t: TeamInfo | undefined, width: number) =>
+  ({ width: `${width}%`, "--bl": t?.fill ?? "var(--muted)", "--bd": t?.barDark ?? t?.fill ?? "var(--muted)" }) as React.CSSProperties;
+
 export default function HeadToHead({ row, offense, defense, teams, badge }: Props) {
   const o = row.offense, d = row.defense;
   const op = o.pct ?? null, dp = d.pct ?? null;
@@ -29,8 +33,8 @@ export default function HeadToHead({ row, offense, defense, teams, badge }: Prop
       </div>
       {share !== null && (
         <div className="h2h-bar" aria-hidden>
-          <span style={{ width: `${share}%`, background: teams[offense]?.fill ?? "var(--ink)" }} />
-          <span style={{ width: `${100 - share}%`, background: teams[defense]?.fill ?? "var(--muted)" }} />
+          <span style={barVars(teams[offense], share)} />
+          <span style={barVars(teams[defense], 100 - share)} />
         </div>
       )}
     </div>

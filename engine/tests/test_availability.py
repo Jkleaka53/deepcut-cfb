@@ -44,3 +44,11 @@ def test_only_games_before_order_and_season_count():
 def test_never_says_injury():
     df = _f([_p(1, 1, 10, "Carr"), _p(2, 2, 11, "Smith")])
     assert all("injur" not in f["text"].lower() for f in qb_flags(df, "T", 2026, 3))
+
+
+def test_report_for_known_conference_without_link():
+    from cfbm.availability import report_for
+    b = report_for("Big Ten")
+    assert b["url"] is None and b["publishes"] is True and b["when"]
+    assert report_for("SEC")["publishes"] is True and report_for("SEC")["url"]
+    assert report_for("Mountain West") == {"conference": "Mountain West", "url": None, "when": None, "publishes": False}

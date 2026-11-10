@@ -27,6 +27,7 @@ export interface GameSummary {
   homePoints: number | null;
   awayPoints: number | null;
   hasBreakdown: boolean;
+  startTimeTBD?: boolean;
   homeRank?: number | null;
   awayRank?: number | null;
   weather?: Weather | null;
@@ -54,6 +55,7 @@ export interface TeamInfo {
   fill: string;
   textLight: string;
   textDark: string;
+  barDark?: string;
   logo: string | null;
   logoDark: string | null;
 }
@@ -70,7 +72,7 @@ export interface AvailabilityFlag { kind: "ok" | "warn"; text: string }
 
 export interface TeamAvailability {
   flags: AvailabilityFlag[];
-  report: { conference: string | null; url: string | null; when: string | null };
+  report: { conference: string | null; url: string | null; when: string | null; publishes?: boolean };
 }
 
 export interface Cell { value: number | null; rank: number | null; pct?: number | null }

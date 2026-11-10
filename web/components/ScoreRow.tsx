@@ -44,7 +44,7 @@ export default function ScoreRow({ game: g, teams, favorites, onToggle }: Props)
           team={teams[g.home]} fav={favorites.includes(g.home)} onToggle={() => onToggle(g.home)} />
       </div>
       <div className="sr-side">
-        <span className="sr-time">{final ? "Final" : localKickoff(g.start)}</span>
+        <span className="sr-time">{final ? "Final" : localKickoff(g.start, g.startTimeTBD)}</span>
         {!final && mini && (
           <span className="sr-wx"><WeatherIcon kind={g.weather?.icon} indoors={g.weather?.status === "indoors"} />{mini}</span>
         )}

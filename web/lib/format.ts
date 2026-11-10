@@ -40,6 +40,6 @@ export function splitShare(offPct: number | null | undefined, defPct: number | n
 export function localKickoff(iso: string, tbd = false): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  if (tbd) return `${d.toLocaleDateString(undefined, { weekday: "short" })} · TBA`;
+  if (tbd) return `${d.toLocaleDateString(undefined, { weekday: "short", timeZone: "UTC" })} · TBA`;
   return d.toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" });
 }

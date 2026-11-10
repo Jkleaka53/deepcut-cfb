@@ -21,6 +21,8 @@ export default function AvailabilityCard({ team, data }: { team: string; data?: 
           </a>
           {r.when && <span className="muted"> {r.when}</span>}
         </p>
+      ) : r?.publishes ? (
+        <p className="report">Check the {r.conference}&apos;s official availability report.{r.when && <span className="muted"> {r.when}</span>}</p>
       ) : (
         <p className="muted report">No official availability report for this game.</p>
       )}

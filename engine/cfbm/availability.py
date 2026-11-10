@@ -34,4 +34,5 @@ def qb_flags(passers: pd.DataFrame, team: str, season: int, before_order: int) -
 
 def report_for(conference: str | None) -> dict:
     r = config.AVAILABILITY_REPORTS.get(conference or "")
-    return {"conference": conference, "url": r["url"] if r else None, "when": r["when"] if r else None}
+    return {"conference": conference, "url": r["url"] if r else None, "when": r["when"] if r else None,
+            "publishes": r is not None}

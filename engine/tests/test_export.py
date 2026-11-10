@@ -170,7 +170,7 @@ def test_game_summary_shape():
     assert s == {"id": 1, "season": 2025, "week": 1, "seasonType": "regular", "start": g["startDate"], "home": "A",
                  "away": "B", "homeConf": "Conf", "awayConf": "Conf", "neutral": False, "venue": "Stadium",
                  "completed": True, "homePoints": 21, "awayPoints": 14, "hasBreakdown": True,
-                 "homeRank": None, "awayRank": None}
+                 "homeRank": None, "awayRank": None, "startTimeTBD": False}
 
 
 def test_to_json_safe():
@@ -208,7 +208,7 @@ def test_teams_json(out):
     teams = _load(out / "2025" / "teams.json")
     assert sorted(t["school"] for t in teams) == FBS
     t = teams[0]
-    assert set(t) == {"school", "id", "abbr", "conference", "fill", "textLight", "textDark", "logo", "logoDark"}
+    assert set(t) == {"school", "id", "abbr", "conference", "fill", "textLight", "textDark", "barDark", "logo", "logoDark"}
     assert t["fill"] == "#002855" and t["logo"].endswith(".png")
 
 
@@ -237,4 +237,12 @@ def test_availability_block(out):
     m = _load(out / "2025" / "matchups" / "7.json")
     assert set(m["availability"]) == {"A", "F"}
     a = m["availability"]["A"]
-    assert isinstance(a["flags"], list) and a["report"] == {"conference": "Conf", "url": None, "when": None}
+    assert isinstance(a["flags"], list) and a["report"] == {"conference": "Conf", "url": None, "when": None, "publishes": False}
+
+
+def test_game_summary_exports_tbd_flag():
+    from cfbm.export import game_summary
+    g = {"id": 1, "season": 2026, "week": 1, "seasonType": "regular", "startDate": "2026-11-14T05:00:00.000Z",
+         "homeTeam": "A", "awayTeam": "B", "startTimeTBD": True}
+    assert game_summary(g, {"A", "B"})["startTimeTBD"] is True
+    assert game_summary({**g, "startTimeTBD": None}, {"A", "B"})["startTimeTBD"] is False

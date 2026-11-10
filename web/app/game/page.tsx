@@ -11,7 +11,7 @@ import QbTiers from "@/components/matchup/QbTiers";
 import SectionTabs from "@/components/matchup/SectionTabs";
 import TeamLogo from "@/components/TeamLogo";
 import { loadMatchup, loadTeams } from "@/lib/data";
-import { passingRows, topGaps } from "@/lib/matchup";
+import { passingRows, topGaps, visibleTabs } from "@/lib/matchup";
 import { normalizeMatchup } from "@/lib/normalize";
 import type { Matchup, TeamInfo } from "@/lib/types";
 
@@ -37,24 +37,26 @@ function MatchupView() {
   if (!m) return <p className="empty">Loading breakdown…</p>;
 
   const g = m.game;
+  const tabs = visibleTabs(m);
+  const gaps = topGaps(m.sections);
   return (
     <article className="matchup">
       <p className="crumb"><Link href="/">Games</Link> · {g.seasonType === "postseason" ? `${g.season} postseason` : `${g.season} · Week ${g.week}`}</p>
       <Hero m={m} teams={teams} />
       {m.notes.map((n) => <div key={n} className="callout">{n}</div>)}
-      <SectionTabs />
+      <SectionTabs show={tabs} />
 
       <section id="preview">
         <EdgeCard sections={m.sections} teams={teams} />
-        <div className="card">
+        {gaps.length > 0 && <div className="card">
           <h4>Biggest gaps</h4>
-          {topGaps(m.sections).map(({ section, row }) => (
+          {gaps.map(({ section, row }) => (
             <div key={`${section.offenseTeam}-${row.key}`}>
               <div className="h2h-context">When {section.offenseTeam} passes</div>
               <HeadToHead row={row} offense={section.offenseTeam} defense={section.defenseTeam} teams={teams} />
             </div>
           ))}
-        </div>
+        </div>}
       </section>
 
       <section id="passing">
@@ -85,10 +87,10 @@ function MatchupView() {
         {m.sections.map((s) => <QbTiers key={s.offenseTeam} section={s} qb={m.quarterbacks[s.offenseTeam]?.name ?? null} />)}
       </section>
 
-      <section id="availability">
+      {tabs.includes("availability") && <section id="availability">
         {[g.away, g.home].map((t) => <AvailabilityCard key={t} team={t} data={m.availability?.[t]} />)}
         <p className="muted small">Our check uses each team&apos;s own box scores. It says what happened, never why.</p>
-      </section>
+      </section>}
     </article>
   );
 }

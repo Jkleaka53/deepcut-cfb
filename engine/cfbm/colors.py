@@ -67,3 +67,13 @@ def fill_for_white_text(primary: str | None, alt: str | None) -> str:
 def text_on(bg_hex: str, primary: str | None, alt: str | None) -> str:
     """A team color usable as text on the given card background (4.5:1)."""
     return _pick(bg_hex, primary, alt, 4.5)
+
+
+def bar_on(bg_hex: str, primary: str | None) -> str:
+    """The team's own color, shifted only in lightness until it shows on the card (3:1 for graphics)."""
+    p = _parse(primary)
+    if p is None:
+        return "#8e9aab"
+    if contrast(_hex(p), bg_hex) >= 3:
+        return _hex(p)
+    return _shift(p, toward_dark=_lum(_parse(bg_hex) or (1, 1, 1)) > 0.5, bg=bg_hex, need=3)

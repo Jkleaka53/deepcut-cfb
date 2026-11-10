@@ -29,3 +29,17 @@ def test_text_on_white_keeps_navy():
 
 def test_bad_hex_falls_back_to_ink():
     assert fill_for_white_text("", None) == "#0b1220"
+
+
+def test_bar_on_keeps_team_hue():
+    import colorsys
+
+    from cfbm.colors import bar_on, contrast
+    for primary in ("#00274c", "#007030", "#002855", "#841617"):
+        out = bar_on("#13171c", primary)
+        assert contrast(out, "#13171c") >= 3
+        h0 = colorsys.rgb_to_hls(*(int(primary[i:i + 2], 16) / 255 for i in (1, 3, 5)))[0]
+        h1 = colorsys.rgb_to_hls(*(int(out[i:i + 2], 16) / 255 for i in (1, 3, 5)))[0]
+        assert abs(h0 - h1) < 0.03
+    assert bar_on("#13171c", "#ffcb05") == "#ffcb05"
+    assert bar_on("#13171c", None) == "#8e9aab"

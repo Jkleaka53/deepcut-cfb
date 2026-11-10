@@ -33,7 +33,7 @@ export default function Hero({ m, teams }: { m: Matchup; teams: Record<string, T
         <Side name={g.away} rank={g.awayRank} qb={m.quarterbacks[g.away]?.name ?? null} team={away} points={final ? g.awayPoints : null} align="l" />
         <div className="hero-mid">
           <span className="hero-at">{g.neutral ? "vs" : "at"}</span>
-          <span className="hero-when">{final ? "Final" : localKickoff(g.start)}</span>
+          <span className="hero-when">{final ? "Final" : localKickoff(g.start, g.startTimeTBD)}</span>
         </div>
         <Side name={g.home} rank={g.homeRank} qb={m.quarterbacks[g.home]?.name ?? null} team={home} points={final ? g.homePoints : null} align="r" />
       </div>

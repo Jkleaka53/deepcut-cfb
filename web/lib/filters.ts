@@ -34,8 +34,9 @@ export function groupByDay(games: GameSummary[]): { day: string; games: GameSumm
   const out: { day: string; games: GameSummary[] }[] = [];
   for (const g of [...games].sort(byKickoff)) {
     const d = new Date(g.start);
+    // A TBA kickoff's clock time is a placeholder (05:00Z); its UTC date is the real game day.
     const day = Number.isNaN(d.getTime()) ? "Date TBA"
-      : d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+      : d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric", ...(g.startTimeTBD ? { timeZone: "UTC" } : {}) });
     const last = out[out.length - 1];
     if (last && last.day === day) last.games.push(g);
     else out.push({ day, games: [g] });

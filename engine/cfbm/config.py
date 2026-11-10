@@ -43,4 +43,5 @@ AVAILABILITY_REPORTS = {
     "SEC": {"url": "https://www.secsports.com/fbreports", "when": _P4_WHEN},
     "ACC": {"url": "https://theacc.com/sports/2025/8/28/availability-reporting.aspx", "when": _P4_WHEN},
     "Big 12": {"url": "https://big12sports.com/sports/2025/8/21/availability-reporting.aspx", "when": _P4_WHEN},
+    "Big Ten": {"url": None, "when": _P4_WHEN},  # publishes reports; page URL not yet confirmed
 }
