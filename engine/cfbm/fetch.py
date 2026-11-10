@@ -45,6 +45,10 @@ def roster_positions(client, season: int, live: bool) -> dict[int, str]:
     return out
 
 
+def game_advanced(client, season: int, live: bool) -> list[dict]:
+    return client.get("/stats/game/advanced", {"year": season}, cacheable=not live) or []
+
+
 def advanced_season(client, season: int, live: bool) -> list[dict]:
     return client.get("/stats/season/advanced", {"year": season}, cacheable=not live)
 
