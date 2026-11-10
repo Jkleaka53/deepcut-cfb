@@ -14,7 +14,7 @@ from cfbm import config, fetch
 from cfbm.plays import normalize_plays, order_key
 from cfbm.qb import career, current_starter, passer_games
 from cfbm.splits import split_table, tier_lookup
-from cfbm.team_stats import TG_COLUMNS, blended_profile, season_profile, team_game_pass
+from cfbm.team_stats import TG_COLUMNS, blended_profile, fbs_only, season_profile, team_game_pass
 from cfbm.tiers import assign_tiers
 from cfbm.units import unit_tables
 from cfbm.qb import COLUMNS as PASSER_COLUMNS
@@ -73,7 +73,8 @@ class _Data:
                 passers.append(passer_games(fetch.player_box(client, s, st, wk, self.games[s]), s, st, wk))
         tgs = [t for t in tgs if not t.empty]
         passers = [p for p in passers if not p.empty]
-        self.tg = pd.concat(tgs, ignore_index=True) if tgs else pd.DataFrame(columns=TG_COLUMNS)
+        self.tg = fbs_only(pd.concat(tgs, ignore_index=True) if tgs else pd.DataFrame(columns=TG_COLUMNS),
+                           self.fbs)
         self.passers = pd.concat(passers, ignore_index=True) if passers else pd.DataFrame(columns=PASSER_COLUMNS)
         self.full_tiers = {s: assign_tiers(season_profile(self.tg, s, None, self.havoc.get(s)), self.fbs[s])
                            for s in seasons_all}

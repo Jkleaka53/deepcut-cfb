@@ -107,3 +107,15 @@ def test_week5_is_not_early():
 def test_postseason_is_not_early():
     _, early = blended_profile(_two_seasons(), 2025, 1, "postseason", None, None)
     assert not early
+
+
+def test_fbs_only_drops_games_involving_non_fbs_teams():
+    from cfbm.team_stats import fbs_only
+    tg = _tg([(2025, "regular", 1, 1, "A", "B", 10, 0, 0.0),
+              (2025, "regular", 2, 2, "A", "FCS U", 10, 9, 0.0),      # A's offense vs FCS defense
+              (2025, "regular", 2, 2, "FCS U", "A", 10, 9, 0.0),      # FCS offense vs A's defense
+              (2024, "regular", 1, 3, "B", "N", 10, 0, 0.0)])         # N was FCS in 2024
+    out = fbs_only(tg, {2025: {"A", "B", "N"}, 2024: {"A", "B"}})
+    assert out["game_id"].tolist() == [1]
+    p = season_profile(out, 2025, None)
+    assert p.loc["A", "off_sack_rate"] == 0 and p.loc["A", "games"] == 1

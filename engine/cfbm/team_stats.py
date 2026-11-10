@@ -36,6 +36,15 @@ def team_game_pass(plays: pd.DataFrame) -> pd.DataFrame:
     return g[TG_COLUMNS]
 
 
+def fbs_only(tg: pd.DataFrame, fbs_by_season: dict[int, set[str]]) -> pd.DataFrame:
+    """Keep only games where both teams were FBS that season, so FCS games never shape FBS numbers."""
+    if tg.empty:
+        return tg
+    keep = [t in fbs_by_season.get(int(s), set()) and o in fbs_by_season.get(int(s), set())
+            for s, t, o in zip(tg["season"], tg["team"], tg["opponent"])]
+    return tg[keep].reset_index(drop=True)
+
+
 def _div(a, b):
     a = np.asarray(a, dtype=float)
     b = np.asarray(b, dtype=float)
