@@ -109,7 +109,7 @@ button {
 .game-row .go { white-space: nowrap; font-size: 0.85rem; }
 
 .callout {
-  border-left: 3px solid var(--accent);
+  border: 1px solid var(--accent);
   background: var(--accent-soft);
   padding: 8px 12px;
   margin: 8px 0;
