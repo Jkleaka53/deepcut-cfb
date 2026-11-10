@@ -35,3 +35,12 @@ PLAY_TYPES = {
 DISCLAIMER = "Not for gambling or betting. DeepCut CFB is a personal statistics project."
 BOWL_NOTE = "Bowl rosters can differ from season numbers because of opt-outs and transfers."
 EARLY_NOTE = "Early-season data: numbers blend last season with this season."
+
+# Official conference availability report pages (verified 2026-11-10). Big Ten's page could not be
+# confirmed (bigten.org blocks automated requests), so it is left out until a URL is checked by hand.
+_P4_WHEN = "Posts Wednesday, updated until about 90 minutes before kickoff."
+AVAILABILITY_REPORTS = {
+    "SEC": {"url": "https://www.secsports.com/fbreports", "when": _P4_WHEN},
+    "ACC": {"url": "https://theacc.com/sports/2025/8/28/availability-reporting.aspx", "when": _P4_WHEN},
+    "Big 12": {"url": "https://big12sports.com/sports/2025/8/21/availability-reporting.aspx", "when": _P4_WHEN},
+}

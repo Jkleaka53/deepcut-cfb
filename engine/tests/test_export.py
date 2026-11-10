@@ -231,3 +231,10 @@ def test_section_edge_and_gap(out):
     assert "edge" in sec and sec["biggestGap"] is not None
     g7 = next(g for g in _load(out / "2025" / "games.json") if g["id"] == 7)
     assert set(g7["gap"]) == {"key", "label", "favors"} and g7["gap"]["favors"] in ("A", "F")
+
+
+def test_availability_block(out):
+    m = _load(out / "2025" / "matchups" / "7.json")
+    assert set(m["availability"]) == {"A", "F"}
+    a = m["availability"]["A"]
+    assert isinstance(a["flags"], list) and a["report"] == {"conference": "Conf", "url": None, "when": None}

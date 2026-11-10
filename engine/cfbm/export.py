@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from cfbm import colors, config, fetch
+from cfbm.availability import qb_flags, report_for
 from cfbm.ranks import ap_poll_for
 from cfbm.weather import game_weather, http_fetch
 from cfbm.plays import game_orders, normalize_plays, order_key
@@ -184,6 +185,9 @@ def matchup(d: _Data, g: dict) -> dict:
         "notes": notes,
         "quarterbacks": {t: (None if q is None else {"athleteId": q[0], "name": q[1]}) for t, q in qbs.items()},
         "sections": sections,
+        "availability": {t: {"flags": qb_flags(d.passers, t, s, order),
+                             "report": report_for((d.teams.get(s, {}).get(t) or {}).get("conference"))}
+                         for t in (away, home)},
     }
 
 
