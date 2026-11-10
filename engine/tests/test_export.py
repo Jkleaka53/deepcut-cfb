@@ -40,7 +40,7 @@ def _world():
     ]
     games = [{"id": i, "season": 2025, "week": wk, "seasonType": st, "startDate": f"2025-09-{wk + (20 + i if st == 'postseason' else 0):02d}T19:00:00.000Z",
               "homeTeam": h, "awayTeam": a, "homeConference": "Conf" if h in FBS else None,
-              "awayConference": "Conf" if a in FBS else None, "neutralSite": neu, "venue": "Stadium",
+              "awayConference": "Conf" if a in FBS else None, "neutralSite": neu, "venue": "Stadium", "venueId": 1, "startTimeTBD": False,
               "completed": done, "homePoints": 21 if done else None, "awayPoints": 14 if done else None}
              for i, st, wk, h, a, neu, done in sched]
     return games
@@ -79,11 +79,18 @@ class WorldClient:
         return []
 
 
+def _fake_weather(url, params):
+    hours = [f"2025-09-{d:02d}T{h:02d}:00" for d in range(1, 30) for h in range(24)]
+    n = len(hours)
+    return {"hourly": {"time": hours, "temperature_2m": [70.0] * n, "precipitation_probability": [5] * n,
+                       "wind_speed_10m": [4.0] * n, "wind_gusts_10m": [9.0] * n, "weather_code": [0] * n}}
+
+
 @pytest.fixture(scope="module")
 def out(tmp_path_factory):
     d = tmp_path_factory.mktemp("data")
     build(WorldClient(), d, seasons=(2025,), career_start=2025,
-          now=datetime(2025, 9, 2, tzinfo=timezone.utc))
+          now=datetime(2025, 9, 2, tzinfo=timezone.utc), weather_fetch=_fake_weather)
     return d
 
 
@@ -208,3 +215,11 @@ def test_teams_json(out):
 def test_game_ranks(out):
     g7 = next(g for g in _load(out / "2025" / "games.json") if g["id"] == 7)
     assert g7["awayRank"] == 7 and g7["homeRank"] is None
+
+
+def test_weather_and_venue(out):
+    games = {g["id"]: g for g in _load(out / "2025" / "games.json")}
+    assert games[7]["weather"]["status"] == "forecast" and games[7]["weather"]["label"] == "Clear"
+    assert games[4]["weather"] is None
+    m = _load(out / "2025" / "matchups" / "7.json")
+    assert m["venue"]["city"] == "Town" and m["venue"]["grass"] is True

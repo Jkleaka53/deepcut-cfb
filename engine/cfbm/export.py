@@ -12,6 +12,7 @@ import pandas as pd
 
 from cfbm import colors, config, fetch
 from cfbm.ranks import ap_poll_for
+from cfbm.weather import game_weather, http_fetch
 from cfbm.plays import game_orders, normalize_plays, order_key
 from cfbm.qb import career, current_starter, passer_games
 from cfbm.splits import split_table, tier_lookup
@@ -203,23 +204,50 @@ def _current(games: list[dict], now: datetime) -> tuple[int, str]:
     return g["week"], g["seasonType"]
 
 
+def venue_block(v: dict | None) -> dict | None:
+    if not v:
+        return None
+    return {"name": v.get("name"), "city": v.get("city"), "state": v.get("state"), "grass": v.get("grass"),
+            "dome": v.get("dome")}
+
+
 def build(client, out_dir: Path, seasons=config.DISPLAY_SEASONS, now: datetime | None = None,
-          career_start: int = config.CAREER_START_SEASON) -> None:
+          career_start: int = config.CAREER_START_SEASON, weather_fetch=None) -> None:
     out_dir = Path(out_dir)
     live = max(seasons)
     seasons_all = list(range(min(career_start, min(seasons)), live + 1))
     d = _Data(client, seasons_all, live)
+    now = now or datetime.now(timezone.utc)
+    fetch_json = weather_fetch or http_fetch
+    calls: dict = {}
+
+    def cached_fetch(url, params):
+        key = (url, tuple(sorted(params.items())))
+        if key not in calls:
+            try:
+                calls[key] = fetch_json(url, params)
+            except Exception as e:  # noqa: BLE001
+                calls[key] = e
+        if isinstance(calls[key], Exception):
+            raise calls[key]
+        return calls[key]
 
     for s in seasons:
         _write(out_dir / str(s) / "teams.json", team_entries(d.teams[s], d.fbs[s]))
         polls = d.polls[s] = fetch.rankings(client, s, s == live)
         summaries = [game_summary(g, d.fbs[s], ap_poll_for(polls, g["seasonType"], g["week"])) for g in d.games[s]]
-        _write(out_dir / str(s) / "games.json", summaries)
+        for g, summ in zip(d.games[s], summaries):
+            v = d.venues.get(g.get("venueId"))
+            summ["weather"] = game_weather(v, g.get("startDate"), bool(g.get("startTimeTBD")),
+                                           bool(g.get("completed")), now, cached_fetch)
         for g, summ in zip(d.games[s], summaries):
             if summ["hasBreakdown"]:
-                _write(out_dir / str(s) / "matchups" / f"{g['id']}.json", matchup(d, g))
+                m = matchup(d, g)
+                m["game"]["weather"] = summ["weather"]
+                m["venue"] = venue_block(d.venues.get(g.get("venueId")))
+                _write(out_dir / str(s) / "matchups" / f"{g['id']}.json", m)
+        _write(out_dir / str(s) / "games.json", summaries)
 
-    now = now or datetime.now(timezone.utc)
     week, st = _current(d.games[live], now) if d.games[live] else (1, "regular")
     _write(out_dir / "index.json", {
         "seasons": sorted(seasons), "currentSeason": live, "currentWeek": week, "seasonType": st,
