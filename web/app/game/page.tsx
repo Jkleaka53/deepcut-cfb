@@ -111,7 +111,7 @@ function MatchupView() {
 
       {tabs.includes("availability") && <section id="availability">
         {[g.away, g.home].map((t) => (
-          <AvailabilityWatch key={t} team={t} data={m.availability?.[t]} completed={g.completed} out={out} onToggle={toggle} />
+          <AvailabilityWatch key={t} team={t} data={m.availability?.[t]} completed={g.completed} out={out} onToggle={toggle} info={teams[t]} />
         ))}
         <p className="muted small">Our check uses each team&apos;s own box scores. It says what happened, never why.</p>
       </section>}

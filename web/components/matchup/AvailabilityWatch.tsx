@@ -1,8 +1,9 @@
-import { AlertTriangle, Check, ExternalLink } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import TeamLogo from "../TeamLogo";
 import AvailabilityCard from "./AvailabilityCard";
-import type { TeamAvailability, WatchPlayer } from "@/lib/types";
+import type { TeamAvailability, TeamInfo, WatchPlayer } from "@/lib/types";
 
-type Props = { team: string; data?: TeamAvailability; completed: boolean; out: Set<number>; onToggle: (id: number, out: boolean) => void };
+type Props = { team: string; data?: TeamAvailability; completed: boolean; out: Set<number>; onToggle: (id: number, out: boolean) => void; info?: TeamInfo };
 
 function roleLine(p: WatchPlayer, starter: string | null): string {
   if (p.role === "QB") return "Starting QB";
@@ -11,15 +12,42 @@ function roleLine(p: WatchPlayer, starter: string | null): string {
   return `${Math.round(p.share * 100)}% of ${p.shareOf}`;
 }
 
-/** The what-if list for one team. Completed games and older data keep the plain availability card. */
-export default function AvailabilityWatch({ team, data, completed, out, onToggle }: Props) {
-  if (completed || !data?.players) return <AvailabilityCard team={team} data={data} />;
+/** One collapsible block per team, closed to start. Completed games and older data hold the plain card. */
+export default function AvailabilityWatch(props: Props) {
+  const { team, data, completed, out, info } = props;
+  const live = !completed && !!data?.players;
+  const players = data?.players ?? [];
+  const switchable = players.filter((p) => p.role !== "QB2");
+  const sub = live
+    ? `${switchable.length} players to set · ${switchable.filter((p) => out.has(p.athleteId)).length} Out`
+    : data?.flags[0]?.text ?? "No quarterback games on record yet this season.";
+  return (
+    <details className="qb-group aw-group">
+      <summary style={{ background: info?.fill ?? "var(--ink)" }}>
+        <TeamLogo team={info} name={team} size={30} tile />
+        <span className="qbg-text">
+          <span className="qbg-team">{team} availability</span>
+          <span className="qbg-sub">{sub}</span>
+        </span>
+        <span className="qbg-btn">
+          <span className="when-closed">{live ? `Show all ${players.length} players` : "Show details"} <ChevronDown className="icon sm" aria-hidden /></span>
+          <span className="when-open">Hide <ChevronUp className="icon sm" aria-hidden /></span>
+        </span>
+      </summary>
+      <div className="qbg-body">
+        {live ? <WatchList {...props} /> : <AvailabilityCard team={team} data={data} />}
+      </div>
+    </details>
+  );
+}
+
+function WatchList({ data, out, onToggle }: Props) {
+  if (!data?.players) return null;
   const r = data.report;
   const starter = data.players.find((p) => p.role === "QB")?.name ?? null;
   const b = data.backup;
   return (
     <div className="card aw">
-      <h4>{team}</h4>
       {data.flags.map((f) => (
         <div key={f.text} className={`flag ${f.kind}`}>
           {f.kind === "ok" ? <Check className="icon sm" aria-hidden /> : <AlertTriangle className="icon sm" aria-hidden />}

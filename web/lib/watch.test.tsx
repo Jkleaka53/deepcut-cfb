@@ -74,3 +74,33 @@ describe("what-if banner", () => {
     expect(html(<WhatIfBanner text="What-if: Tommy Carr Out (no stats last game)" canReset={false} onReset={() => {}} />)).not.toContain("Reset");
   });
 });
+
+describe("collapsible availability block", () => {
+  it("is a closed block with team header, summary and an obvious expand control", () => {
+    const h = html(<AvailabilityWatch team="Michigan" data={data()} completed={false} out={new Set([10, 20])} onToggle={() => {}} />);
+    expect(h).toMatch(/<details class="qb-group aw-group"(?![^>]*open)/);
+    expect(h).toContain("Michigan availability");
+    expect(h).toContain("3 players to set · 2 Out");
+    expect(h).toContain("Show all 4 players");
+    expect(h.slice(h.indexOf("</summary>"))).toContain("Tommy Carr");
+  });
+  it("completed game: still a block, summary from the box-score check", () => {
+    const h = html(<AvailabilityWatch team="Michigan" data={data()} completed out={new Set()} onToggle={() => {}} />);
+    expect(h).toContain("Michigan availability");
+    expect(h).toContain("Tommy Carr started last game.");
+    expect(h).toContain("Show details");
+  });
+});
+
+describe("banner Change link", () => {
+  it("opens the availability blocks", () => {
+    const host = document.createElement("div");
+    host.innerHTML = '<details class="aw-group"></details><details class="aw-group"></details>';
+    document.body.appendChild(host);
+    const el = document.createElement("div");
+    document.body.appendChild(el);
+    act(() => createRoot(el).render(<WhatIfBanner text="What-if: x" canReset={false} onReset={() => {}} />));
+    act(() => (el.querySelector("a") as HTMLAnchorElement).click());
+    expect([...host.querySelectorAll("details")].every((d) => d.open)).toBe(true);
+  });
+});
