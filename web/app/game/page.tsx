@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
-import AvailabilityCard from "@/components/matchup/AvailabilityCard";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import AvailabilityWatch from "@/components/matchup/AvailabilityWatch";
+import WhatIfBanner from "@/components/matchup/WhatIfBanner";
+import { loadOut, saveOut, differs } from "@/lib/choices";
+import { applyWhatIf, defaultsOut, whatIfText } from "@/lib/whatif";
 import EdgeCard from "@/components/matchup/EdgeCard";
 import HeadToHead from "@/components/matchup/HeadToHead";
 import Hero from "@/components/matchup/Hero";
@@ -21,21 +24,40 @@ function MatchupView() {
   const params = useSearchParams();
   const season = Number(params.get("season"));
   const id = Number(params.get("id"));
-  const [m, setM] = useState<Matchup | null>(null);
+  const [raw, setM] = useState<Matchup | null>(null);
   const [teams, setTeams] = useState<Record<string, TeamInfo>>({});
   const [missing, setMissing] = useState(false);
+  const [out, setOut] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (!season || !id) { setMissing(true); return; }
     setMissing(false);
     setM(null);
-    loadMatchup(season, id).then((x) => setM(normalizeMatchup(x))).catch(() => setMissing(true));
+    loadMatchup(season, id).then((x) => {
+      const nm = normalizeMatchup(x);
+      const listed = new Set(Object.values(nm.availability ?? {}).flatMap((a) => (a.players ?? []).map((p) => p.athleteId)));
+      setOut(nm.game.completed ? new Set() : loadOut(season, id, defaultsOut(nm), listed));
+      setM(nm);
+    }).catch(() => setMissing(true));
     loadTeams(season).then(setTeams);
   }, [season, id]);
 
-  if (missing) return <p className="empty">No breakdown for this game. <Link href="/">Back to all games</Link></p>;
-  if (!m) return <p className="empty">Loading breakdown…</p>;
+  const base = raw;
+  const defaults = useMemo(() => (base ? defaultsOut(base) : new Set<number>()), [base]);
+  const view = useMemo(() => (base && !base.game.completed ? applyWhatIf(base, out) : base), [base, out]);
 
+  if (missing) return <p className="empty">No breakdown for this game. <Link href="/">Back to all games</Link></p>;
+  if (!base || !view) return <p className="empty">Loading breakdown…</p>;
+
+  const toggle = (pid: number, isOut: boolean) => {
+    const next = new Set(out);
+    if (isOut) next.add(pid); else next.delete(pid);
+    setOut(next);
+    saveOut(season, id, next, defaults);
+  };
+  const reset = () => { setOut(new Set(defaults)); saveOut(season, id, defaults, defaults); };
+  const banner = base.game.completed ? null : whatIfText(base, out, defaults);
+  const m = view;
   const g = m.game;
   const tabs = visibleTabs(m);
   const gaps = topGaps(m.sections);
@@ -43,6 +65,7 @@ function MatchupView() {
     <article className="matchup">
       <p className="crumb"><Link href="/">Games</Link> · {g.seasonType === "postseason" ? `${g.season} postseason` : `${g.season} · Week ${g.week}`}</p>
       <Hero m={m} teams={teams} />
+      {banner && <WhatIfBanner text={banner} canReset={differs(out, defaults)} onReset={reset} />}
       {m.notes.map((n) => <div key={n} className="callout">{n}</div>)}
       <SectionTabs show={tabs} />
 
@@ -88,7 +111,9 @@ function MatchupView() {
       </section>
 
       {tabs.includes("availability") && <section id="availability">
-        {[g.away, g.home].map((t) => <AvailabilityCard key={t} team={t} data={m.availability?.[t]} />)}
+        {[g.away, g.home].map((t) => (
+          <AvailabilityWatch key={t} team={t} data={m.availability?.[t]} completed={g.completed} out={out} onToggle={toggle} />
+        ))}
         <p className="muted small">Our check uses each team&apos;s own box scores. It says what happened, never why.</p>
       </section>}
     </article>

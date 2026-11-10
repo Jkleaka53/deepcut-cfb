@@ -63,7 +63,23 @@ export function applyWhatIf(m: Matchup, out: Set<number>): Matchup {
 
 /** Players who start Out: anyone with no stats in the team's last game, except the backup QB. */
 export function defaultsOut(m: Matchup): Set<number> {
-  const ids = Object.values(m.availability ?? {}).flatMap((a) => a.players ?? [])
-    .filter((p) => p.noStatsLastGame && p.role !== "QB2").map((p) => p.athleteId);
+  const ids = Object.values(m.availability ?? {}).flatMap((a) => (a.players ?? [])
+    .filter((p) => p.noStatsLastGame && p.role !== "QB2" && (p.role !== "QB" || a.backup))
+    .map((p) => p.athleteId));
   return new Set(ids);
+}
+
+/** Banner text: every change from the defaults, plus any starting QB Out by default (so the backup's
+ *  numbers never show silently). Null when there is nothing to say. */
+export function whatIfText(m: Matchup, out: Set<number>, defaults: Set<number>): string | null {
+  const parts: string[] = [];
+  for (const a of Object.values(m.availability ?? {})) {
+    for (const p of a.players ?? []) {
+      if (p.role === "QB2") continue;
+      const isOut = out.has(p.athleteId);
+      if (isOut !== defaults.has(p.athleteId)) parts.push(`${p.name} set ${isOut ? "Out" : "In"}`);
+      else if (isOut && p.role === "QB") parts.push(`${p.name} Out (no stats last game)`);
+    }
+  }
+  return parts.length ? `What-if: ${parts.join(", ")}` : null;
 }

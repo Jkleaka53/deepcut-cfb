@@ -267,3 +267,24 @@ details.more[open] summary::after { content: " −"; }
 .qb-group[open] .when-open { display: inline-flex; }
 .qbg-body { border: 1px solid var(--line); border-top: 0; padding: 0 10px 12px; background: var(--bg); }
 .qbg-body > .card:first-child { margin-top: 10px; }
+
+/* ---------- availability watch (what-if) ---------- */
+.aw-research { font-size: 14px; margin: 10px 0 6px; }
+.aw-research a { font-weight: 700; color: var(--accent-text); display: inline-flex; gap: 3px; align-items: center; }
+.aw-list { list-style: none; margin: 0; padding: 0; }
+.aw-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.aw-who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.aw-name { font-weight: 700; font-size: 15px; }
+.aw-row.is-out .aw-name { text-decoration: line-through; color: var(--muted); }
+.aw-role { font-size: 12.5px; color: var(--muted); }
+.aw-tags .tag { margin: 3px 4px 0 0; }
+.aw-note { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.aw-switch { flex: none; display: flex; border: 1px solid var(--line); }
+.aw-switch button { font-family: var(--display); font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: 0.4px; min-width: 48px; min-height: 40px; padding: 0 10px; border: 0; background: var(--card); color: var(--muted); cursor: pointer; }
+.aw-switch button[aria-pressed="true"] { background: var(--ink); color: var(--card); }
+.aw-switch button:last-child[aria-pressed="true"] { background: #b42318; color: #ffffff; }
+.aw-switch button:disabled { cursor: not-allowed; opacity: 0.45; }
+.whatif { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; margin: 10px 0 0; padding: 9px 12px; background: var(--accent-tint); border-left: 4px solid var(--accent); font-size: 14px; font-weight: 600; }
+.whatif-actions { display: inline-flex; gap: 12px; align-items: center; }
+.whatif-actions a { color: var(--accent-text); font-weight: 700; }
+.whatif-actions button { font: inherit; font-weight: 700; color: var(--accent-text); background: none; border: 1px solid var(--accent); padding: 3px 8px; cursor: pointer; }

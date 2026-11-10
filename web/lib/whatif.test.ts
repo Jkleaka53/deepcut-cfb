@@ -86,3 +86,12 @@ describe("applyWhatIf", () => {
     expect([...defaultsOut(m())]).toEqual([20]);
   });
 });
+
+describe("defaultsOut without a backup", () => {
+  it("a starter with no backup never starts Out (his switch is disabled)", () => {
+    const input = m();
+    input.availability!.Michigan.backup = null;
+    input.availability!.Michigan.players![0].noStatsLastGame = true;
+    expect([...defaultsOut(input)]).toEqual([20]);
+  });
+});
