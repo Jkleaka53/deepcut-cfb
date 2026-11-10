@@ -1,42 +1,152 @@
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #f7f6f3;
+  --surface: #ffffff;
+  --text: #1c1c1a;
+  --muted: #6b6a65;
+  --line: #dddbd4;
+  --accent: #c97a12;
+  --accent-soft: rgba(232, 163, 61, 0.22);
+  --good: #2f7d4f;
+  --bad: #b23b2e;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg: #141412;
+    --surface: #1d1d1a;
+    --text: #ecebe6;
+    --muted: #9c9a92;
+    --line: #34332e;
+    --accent: #e8a33d;
+    --accent-soft: rgba(232, 163, 61, 0.18);
+    --good: #5cb985;
+    --bad: #e2695b;
   }
 }
 
-html,
-body {
-  max-width: 100vw;
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.45;
   overflow-x: hidden;
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+a { color: inherit; }
+
+.wrap { max-width: 920px; margin: 0 auto; padding: 0 16px; }
+
+.nav {
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.nav .wrap { display: flex; gap: 18px; align-items: center; height: 52px; flex-wrap: wrap; }
+.nav .brand { font-weight: 800; letter-spacing: 0.02em; text-decoration: none; }
+.nav a.link { text-decoration: none; color: var(--muted); }
+.nav a.link:hover { color: var(--text); }
+
+main { padding: 20px 0 40px; }
+
+h1 { font-size: 1.5rem; margin: 0 0 4px; }
+h2 { font-size: 1.15rem; margin: 28px 0 10px; }
+h3 { font-size: 1rem; margin: 18px 0 6px; }
+
+.label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 700;
+}
+.muted { color: var(--muted); }
+
+.controls { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 12px; }
+input[type="search"], select {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  padding: 8px 10px;
+}
+input[type="search"] { width: 100%; }
+
+button {
+  font: inherit;
+  border-radius: 0;
+  cursor: pointer;
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+.star {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 1.05rem;
+  padding: 0 4px;
+  line-height: 1;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+.game-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-top: none;
+}
+.game-row:first-child { border-top: 1px solid var(--line); }
+.game-row .teams { font-weight: 600; }
+.game-row .meta { font-size: 0.85rem; color: var(--muted); }
+.game-row .go { white-space: nowrap; font-size: 0.85rem; }
+
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 8px 12px;
+  margin: 8px 0;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 6px 0 4px; }
+table.stats {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 520px;
+  background: var(--surface);
+  font-variant-numeric: tabular-nums;
+}
+table.stats th, table.stats td {
+  border-bottom: 1px solid var(--line);
+  padding: 7px 10px;
+  text-align: right;
+  white-space: nowrap;
+}
+table.stats th:first-child, table.stats td:first-child { text-align: left; }
+table.stats th { font-size: 0.78rem; color: var(--muted); font-weight: 600; }
+table.stats tr.highlight td { background: var(--accent-soft); font-weight: 600; }
+.tag {
+  display: inline-block;
+  font-size: 0.7rem;
+  border: 1px solid var(--line);
+  padding: 0 5px;
+  margin-left: 6px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.edge-clear { font-weight: 700; }
+.section-head { border-top: 2px solid var(--text); padding-top: 14px; margin-top: 32px; }
+
+footer.disclaimer {
+  border-top: 1px solid var(--line);
+  padding: 18px 0 28px;
+  font-size: 0.82rem;
+  color: var(--muted);
 }
