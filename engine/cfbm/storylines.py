@@ -97,7 +97,7 @@ def storylines(g: dict, qbs: dict, facts: dict[str, list[dict]], team_loc: dict[
                 if s:
                     out.append(s)
         prev = _start(prev_start.get(team))
-        if prev and kick:
+        if prev and kick and g.get("seasonType") != "postseason":  # every bowl team has a long layoff
             days = int((kick - prev).total_seconds() // 86400)
             if days >= BYE_DAYS:
                 out.append({"text": f"{team} is coming off a bye ({days} days of rest).", "sample": "schedule", "kind": "storyline", "n": 0})

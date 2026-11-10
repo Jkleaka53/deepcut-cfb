@@ -25,8 +25,10 @@ CUES = {
 }
 
 
-def _pct_rank(series: pd.Series, team: str, direction: int) -> tuple[int, float]:
+def _pct_rank(series: pd.Series, team: str, direction: int) -> tuple[int, float] | None:
     vals = series.dropna() * direction
+    if team not in vals.index:
+        return None
     n = len(vals)
     rank = int(1 + (vals > vals[team]).sum())
     return rank, (n - rank) / (n - 1) * 100 if n > 1 else 50.0
@@ -48,16 +50,19 @@ def swing_block(model: dict, home: str, away: str, pre: pd.DataFrame, neutral: b
             d = DIRECTION[k]
             adv = side_advantage(pre.loc[off, f"off_{k}"], pre.loc[dfn, f"def_{k}"], k)
             z = (adv - f["sideMean"]) / f["sideSd"]
-            off_rank, off_pct = _pct_rank(pre[f"off_{k}"], off, d)
-            def_rank, def_pct = _pct_rank(pre[f"def_{k}"], dfn, -d)
+            o, df = _pct_rank(pre[f"off_{k}"], off, d), _pct_rank(pre[f"def_{k}"], dfn, -d)
+            if o is None or df is None or pd.isna(adv):
+                continue
+            (off_rank, off_pct), (def_rank, def_pct) = o, df
             gap = off_pct - def_pct
             weighted += f["importance"] * (gap if off == home else -gap)
             weight += f["importance"]
-            if not f["proven"] or abs(z) < GAP_FLOOR:
-                continue
             band = (edge(off_pct, def_pct) or "even").split("-")[0]
+            # One measure decides both the badge and the team: the rank gap between the two units.
+            if not f["proven"] or abs(z) < GAP_FLOOR or band == "even":
+                continue
             cands.append({"key": k, "label": LABEL[k], "offense": off, "defense": dfn, "edge": band,
-                          "favors": off if z > 0 else dfn, "offRank": off_rank, "defRank": def_rank, "of": n,
+                          "favors": off if gap > 0 else dfn, "offRank": off_rank, "defRank": def_rank, "of": n,
                           "cue": CUES[k].format(off=off, **{"def": dfn}),
                           "score": round(f["importance"] * abs(z) * f["volatility"], 4)})
     drivers = sorted(cands, key=lambda c: -c["score"])[:MAX_DRIVERS]

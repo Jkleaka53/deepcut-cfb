@@ -66,3 +66,25 @@ def test_key_rows_map_passing_parents():
     out = swing_block(MODEL, "Oregon", "Michigan", p, neutral=False)
     assert set(out["keyRows"]["Oregon"]) <= {"epa_per_db", "pd_epa", "success_rate"}
     assert "epa_per_db" in out["keyRows"]["Oregon"]
+
+
+def test_even_matchups_are_not_drivers_and_favors_matches_ranks():
+    import copy
+    # A baseline far below every team makes z positive (offense-favoring) for every unit pair.
+    shifted = copy.deepcopy(MODEL)
+    for f in shifted["features"].values():
+        f["sideMean"] = -0.5
+    p = pre(Oregon=(8, {"pass_ppa": (-0.05, 0.0), "sd_sr": (0.0, 0.0)}),
+            Michigan=(8, {"pass_ppa": (0.0, -0.09), "sd_sr": (0.0, 0.0)}))
+    drivers = swing_block(shifted, "Oregon", "Michigan", p, neutral=False)["drivers"]
+    assert drivers, "baseline shift should still leave real gaps"
+    for d in drivers:
+        better = d["offense"] if d["offRank"] < d["defRank"] else d["defense"]
+        assert d["edge"] != "even" and d["favors"] == better
+
+
+def test_missing_stat_for_a_team_skips_that_factor():
+    p = pre(Oregon=(8, {"pass_ppa": (0.4, 0.0)}), Michigan=(8, {"pass_ppa": (0.0, 0.4)}))
+    p.loc["Oregon", "off_sd_sr"] = float("nan")
+    out = swing_block(MODEL, "Oregon", "Michigan", p, neutral=False)
+    assert not any(d["key"] == "sd_sr" and d["offense"] == "Oregon" for d in out["drivers"])

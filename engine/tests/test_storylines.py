@@ -74,3 +74,11 @@ def test_big_stadium_record_needs_two_games():
     texts = [s["text"] for s in _story(venue=big)]
     # road and neutral games only: game 2 (L, 102k) and game 3 (W, 107k); his own home games don't count
     assert "Tommy Carr is 1-1 in road stadiums of 80,000 or more." in texts
+
+
+def test_bowl_games_get_no_rest_storyline():
+    facts = {"Michigan": [], "Oregon": []}
+    g = {**_game(), "seasonType": "postseason"}
+    out = storylines(g, {"Michigan": None, "Oregon": None}, facts, {"Michigan": EAST, "Oregon": WEST}, WEST,
+                     {"Michigan": "2026-11-28T19:00:00.000Z", "Oregon": "2026-11-28T19:00:00.000Z"})
+    assert not any("bye" in s["text"] or "short week" in s["text"] for s in out)

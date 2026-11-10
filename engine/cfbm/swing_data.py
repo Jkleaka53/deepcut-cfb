@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from cfbm.plays import order_key
+from cfbm.plays import game_orders, order_key
 
 # (key, CFBD advanced-stats path, direction for the offense (+1 higher is better), label)
 FEATURES: list[tuple[str, str, int, str]] = [
@@ -80,7 +80,22 @@ def side_advantage(off: pd.Series | float, dfn: pd.Series | float, key: str):
     return DIRECTION[key] * (off + dfn)
 
 
+def apply_orders(tg: pd.DataFrame, orders: dict[int, int]) -> pd.DataFrame:
+    """Chronological order per game. CFBD labels every postseason game week 1, so postseason order
+    must come from kickoff dates (plays.game_orders), or a bowl's own stats leak into its features."""
+    out = tg.copy()
+    out["order"] = [orders.get(int(g), o) for g, o in zip(out["game_id"], out["order"])]
+    return out
+
+
 def training_frame(tg: pd.DataFrame, games_by_id: dict[int, dict], fbs_by_season: dict[int, set[str]]) -> pd.DataFrame:
+    by_season: dict[int, list[dict]] = {}
+    for g in games_by_id.values():
+        by_season.setdefault(g.get("season"), []).append(g)
+    orders: dict[int, int] = {}
+    for gs in by_season.values():
+        orders.update(game_orders(gs))
+    tg = apply_orders(tg, orders)
     mask = pd.Series([t in fbs_by_season.get(s, set()) and o in fbs_by_season.get(s, set())
                       for s, t, o in zip(tg["season"], tg["team"], tg["opponent"])], index=tg.index, dtype=bool)
     fbs_rows = tg[mask]

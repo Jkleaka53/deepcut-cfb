@@ -122,7 +122,7 @@ class _Data:
         skill = [k for k in skill if not k.empty]
         self.skill = pd.concat(skill, ignore_index=True) if skill else pd.DataFrame(columns=SKILL_COLUMNS)
         # Chronological order (postseason by date, since CFBD numbers every bowl week 1).
-        for frame in (self.tg, self.passers, self.skill):
+        for frame in (self.tg, self.passers, self.skill, self.adv):
             if not frame.empty:
                 frame["order"] = [self.orders.get(gid, o) for gid, o in zip(frame["game_id"], frame["order"])]
         self.full_tiers = {s: assign_tiers(season_profile(self.tg, s, None, self.havoc.get(s)), self.fbs[s])

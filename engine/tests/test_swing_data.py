@@ -73,3 +73,38 @@ def test_side_advantage_adds_what_the_defense_allows():
 
 def test_empty_input_gives_empty_frame():
     assert training_frame(team_games([]), {}, {}).empty
+
+
+def _post_world(include_later=True):
+    rows, games, gid = [], {}, 0
+    rr = [("A", "B", 1), ("C", "D", 1), ("A", "C", 2), ("B", "D", 2), ("A", "D", 3), ("B", "C", 3)]
+    for h, a, wk in rr:
+        gid += 1
+        rows += [adv(gid, 2019, wk, h, a, ppa=0.1), adv(gid, 2019, wk, a, h, ppa=0.1)]
+        games[gid] = {"id": gid, "season": 2019, "seasonType": "regular", "week": wk, "homeTeam": h, "awayTeam": a,
+                      "homePoints": 20, "awayPoints": 10, "neutralSite": False, "completed": True,
+                      "startDate": f"2019-09-0{wk}T19:00:00.000Z"}
+    post = [(200, "A", "B", "2019-12-20T19:00:00.000Z", 0.1)]
+    if include_later:
+        post.append((100, "A", "C", "2020-01-05T19:00:00.000Z", 5.0))  # later game, smaller id
+    for pid, h, a, start, ppa in post:
+        rows += [adv(pid, 2019, 1, h, a, ppa=ppa, st="postseason"), adv(pid, 2019, 1, a, h, ppa=0.1, st="postseason")]
+        games[pid] = {"id": pid, "season": 2019, "seasonType": "postseason", "week": 1, "homeTeam": h, "awayTeam": a,
+                      "homePoints": 30, "awayPoints": 10, "neutralSite": True, "completed": True, "startDate": start}
+    return team_games(rows), games
+
+
+def test_postseason_priors_follow_dates_not_ids():
+    fbs = {2019: {"A", "B", "C", "D"}}
+    tg, games = _post_world()
+    with_later = training_frame(tg, games, fbs).set_index("game_id").loc[200, "f_pass_ppa"]
+    tg2, games2 = _post_world(include_later=False)
+    without = training_frame(tg2, games2, fbs).set_index("game_id").loc[200, "f_pass_ppa"]
+    assert with_later == pytest.approx(without)
+
+
+def test_apply_orders_remaps_by_game():
+    from cfbm.swing_data import apply_orders
+    tg, games = _post_world()
+    out = apply_orders(tg, {200: 101, 100: 102})
+    assert set(out.loc[out["game_id"] == 100, "order"]) == {102} and set(out.loc[out["game_id"] == 1, "order"]) == set(tg.loc[tg["game_id"] == 1, "order"])
