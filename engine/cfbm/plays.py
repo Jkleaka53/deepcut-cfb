@@ -95,7 +95,8 @@ def normalize_plays(raw: list[dict], season: int, season_type: str, week: int) -
             "yards": p.get("yardsGained"),
             "yards_to_goal": p.get("yardsToGoal"),
             # CFBD can't separate QB scrambles from designed runs; sacks are never runs.
-            "is_rush": ptype in config.PLAY_TYPES["rush"],
+            # Kneel-downs are labeled "Rush" too; they'd count as stuffs against teams protecting a lead.
+            "is_rush": ptype in config.PLAY_TYPES["rush"] and "kneel" not in (p.get("playText") or "").lower(),
         })
     df = pd.DataFrame(rows, columns=COLUMNS)
     df["ppa"] = pd.to_numeric(df["ppa"], errors="coerce")

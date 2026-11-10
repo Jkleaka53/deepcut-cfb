@@ -21,7 +21,7 @@ from cfbm.qb import career, current_starter, passer_games
 from cfbm.splits import split_table, tier_lookup
 from cfbm.team_stats import RUN_COLUMNS, TG_COLUMNS, blended_profile, fbs_only, season_profile, team_game_stats
 from cfbm.tiers import assign_tiers
-from cfbm.units import RUN_TABLES, biggest_gap, side_edge, unit_tables
+from cfbm.units import RUN_TABLES, _gaps, biggest_gap, side_edge, unit_tables
 from cfbm.qb import COLUMNS as PASSER_COLUMNS
 from cfbm.skill import SKILL_COLUMNS, skill_games
 from cfbm.watch import watch_list
@@ -300,6 +300,15 @@ def _current(games: list[dict], now: datetime) -> tuple[int, str]:
     return g["week"], g["seasonType"]
 
 
+def biggest_gap_row(rows: list[dict]) -> dict | None:
+    g = _gaps(rows)
+    return max(g, key=lambda x: abs(x[0]))[1] if g else None
+
+
+# Too few plays per team to headline the home page chip (still shown on the game page).
+CHIP_SKIP = {"power_success"}
+
+
 def summary_gap(m: dict) -> dict | None:
     """The single widest rank gap across both sections, passing and running, and which team it favors."""
     best = None
@@ -307,6 +316,8 @@ def summary_gap(m: dict) -> dict | None:
         for units, key in ((sec["units"], "biggestGap"), (sec.get("runUnits", []), "runBiggestGap")):
             rows = {r["key"]: r for u in units for r in u["rows"]}
             r = rows.get(sec.get(key))
+            if r is None or r["key"] in CHIP_SKIP:
+                r = biggest_gap_row([x for x in rows.values() if x["key"] not in CHIP_SKIP])
             if r is None:
                 continue
             gap = r["offense"]["pct"] - r["defense"]["pct"]

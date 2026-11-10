@@ -196,3 +196,10 @@ def test_early_season_blends_run_columns():
     tg.loc[1, "order"] = 1
     p, early = blended_profile(tg, 2025, 3, "regular", None, None)
     assert early and 2.0 < p.loc["A", "off_line_yards"] < 4.0
+
+
+def test_kneel_downs_are_not_runs():
+    kneel = {**_rush(2, -1), "playText": "Jalen Milroe kneel down for a loss of 1 yard"}
+    kneel2 = {**_rush(3, -2), "playText": "TEAM KNEELS for loss of 2"}
+    a = _run([_rush(1, 4), kneel, kneel2]).loc["A"]
+    assert a["runs"] == 1 and a["stuffs"] == 0

@@ -343,3 +343,12 @@ def test_summary_gap_can_pick_a_run_row():
                        "units": [{"rows": [row("epa_per_db", 60, 50)]}],
                        "runUnits": [{"rows": [row("line_yards", 95, 10)]}]}]}
     assert summary_gap(m) == {"key": "line_yards", "label": "line_yards", "favors": "A"}
+
+
+def test_home_chip_skips_short_yardage():
+    from cfbm.export import summary_gap
+    row = lambda key, o, d: {"key": key, "label": key, "offense": {"pct": o}, "defense": {"pct": d}}
+    m = {"sections": [{"offenseTeam": "A", "defenseTeam": "B", "biggestGap": "epa_per_db", "runBiggestGap": "power_success",
+                       "units": [{"rows": [row("epa_per_db", 60, 30)]}],
+                       "runUnits": [{"rows": [row("power_success", 99, 1), row("line_yards", 50, 45)]}]}]}
+    assert summary_gap(m)["key"] == "epa_per_db"
