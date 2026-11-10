@@ -84,6 +84,9 @@ def training_frame(tg: pd.DataFrame, games_by_id: dict[int, dict], fbs_by_season
     mask = pd.Series([t in fbs_by_season.get(s, set()) and o in fbs_by_season.get(s, set())
                       for s, t, o in zip(tg["season"], tg["team"], tg["opponent"])], index=tg.index, dtype=bool)
     fbs_rows = tg[mask]
+    cols = ["game_id", "season", "home_win", "home"] + [f"{p}_{k}" for k in KEYS for p in ("f", "ha", "aa")]
+    if fbs_rows.empty:
+        return pd.DataFrame(columns=cols)
     pri = _priors(fbs_rows).set_index(["game_id", "team"])
     rows = []
     for gid, g in games_by_id.items():
@@ -100,5 +103,4 @@ def training_frame(tg: pd.DataFrame, games_by_id: dict[int, dict], fbs_by_season
             aa = side_advantage(A[f"off_{k}"], H[f"def_{k}"], k)
             row[f"f_{k}"], row[f"ha_{k}"], row[f"aa_{k}"] = ha - aa, ha, aa
         rows.append(row)
-    cols = ["game_id", "season", "home_win", "home"] + [f"{p}_{k}" for k in KEYS for p in ("f", "ha", "aa")]
     return pd.DataFrame(rows, columns=cols).dropna()
