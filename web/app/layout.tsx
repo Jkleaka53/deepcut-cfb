@@ -4,7 +4,7 @@ import Disclaimer from "@/components/Disclaimer";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CFB Matchups",
+  title: "DeepCut CFB",
   description: "College football games broken down on statistics. Not for gambling or betting.",
 };
 
@@ -14,7 +14,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         <nav className="nav">
           <div className="wrap">
-            <Link href="/" className="brand">CFB Matchups</Link>
+            <Link href="/" className="brand">DeepCut CFB</Link>
             <Link href="/#games" className="link">Games</Link>
             <Link href="/#my-teams" className="link">My Teams</Link>
           </div>

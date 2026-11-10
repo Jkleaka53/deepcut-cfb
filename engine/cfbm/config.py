@@ -32,6 +32,6 @@ PLAY_TYPES = {
     "rush": {"Rush", "Rushing Touchdown"},
 }
 
-DISCLAIMER = "Not for gambling or betting. CFB Matchups is a personal statistics project."
+DISCLAIMER = "Not for gambling or betting. DeepCut CFB is a personal statistics project."
 BOWL_NOTE = "Bowl rosters can differ from season numbers because of opt-outs and transfers."
 EARLY_NOTE = "Early-season data: numbers blend last season with this season."

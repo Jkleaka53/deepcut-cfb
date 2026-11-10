@@ -1,8 +1,8 @@
-# CFB Matchups
+# DeepCut CFB
 
-**Not for gambling or betting. CFB Matchups is a personal statistics project.**
+**Not for gambling or betting. DeepCut CFB is a personal statistics project.**
 
-Most college football prediction sites tell you who's favored and stop there. CFB Matchups breaks every FBS game down on the numbers and shows the reasoning:
+Most college football prediction sites tell you who's favored and stop there. DeepCut CFB breaks every FBS game down on the numbers and shows the reasoning:
 
 - **Unit vs. unit.** Each team's pass protection against the other team's pass rush, and its passing offense against the other's pass defense, with national ranks and an edge in plain words (Even / Slight / Clear).
 - **Opponent splits.** How a quarterback has played across his whole college career, including other schools, against top-third, middle-third and bottom-third pass defenses. The tier this game falls in is highlighted. The same splits cover offensive lines against pass rushes, and defenses against passing offenses.

@@ -1,7 +1,7 @@
 [project]
 name = "cfbm"
 version = "0.1.0"
-description = "CFB Matchups stats engine (not for gambling or betting)"
+description = "DeepCut CFB stats engine (not for gambling or betting)"
 requires-python = ">=3.12"
 dependencies = [
     "pandas>=3.1.1",

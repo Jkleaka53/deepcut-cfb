@@ -1,4 +1,4 @@
-export const DISCLAIMER = "Not for gambling or betting. CFB Matchups is a personal statistics project.";
+export const DISCLAIMER = "Not for gambling or betting. DeepCut CFB is a personal statistics project.";
 
 export default function Disclaimer() {
   return (
