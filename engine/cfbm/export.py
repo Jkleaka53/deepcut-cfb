@@ -12,6 +12,7 @@ import pandas as pd
 
 from cfbm import colors, config, fetch
 from cfbm.availability import qb_flags, report_for
+from cfbm.gotw import pick as pick_gotw
 from cfbm.ranks import ap_poll_for
 from cfbm.weather import game_weather, http_fetch
 from cfbm.plays import game_orders, normalize_plays, order_key
@@ -266,6 +267,7 @@ def build(client, out_dir: Path, seasons=config.DISPLAY_SEASONS, now: datetime |
             summ["gap"] = None
             summ["weather"] = game_weather(v, g.get("startDate"), bool(g.get("startTimeTBD")),
                                            bool(g.get("completed")), now, cached_fetch)
+        built = []
         for g, summ in zip(d.games[s], summaries):
             if summ["hasBreakdown"]:
                 m = matchup(d, g)
@@ -273,7 +275,9 @@ def build(client, out_dir: Path, seasons=config.DISPLAY_SEASONS, now: datetime |
                 m["venue"] = venue_block(d.venues.get(g.get("venueId")))
                 summ["gap"] = m["game"]["gap"] = summary_gap(m)
                 _write(out_dir / str(s) / "matchups" / f"{g['id']}.json", m)
+                built.append(m)
         _write(out_dir / str(s) / "games.json", summaries)
+        _write(out_dir / str(s) / "gotw.json", pick_gotw(built))
 
     week, st = _current(d.games[live], now) if d.games[live] else (1, "regular")
     _write(out_dir / "index.json", {

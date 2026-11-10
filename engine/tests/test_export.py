@@ -246,3 +246,10 @@ def test_game_summary_exports_tbd_flag():
          "homeTeam": "A", "awayTeam": "B", "startTimeTBD": True}
     assert game_summary(g, {"A", "B"})["startTimeTBD"] is True
     assert game_summary({**g, "startTimeTBD": None}, {"A", "B"})["startTimeTBD"] is False
+
+
+def test_gotw_json(out):
+    g = _load(out / "2025" / "gotw.json")
+    assert isinstance(g, dict)
+    for v in g.values():
+        assert set(v) == {"id", "why"} and isinstance(v["id"], int)

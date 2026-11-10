@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Star } from "lucide-react";
 import ChipRow from "@/components/ChipRow";
+import GotwCard from "@/components/GotwCard";
 import ScoreRow from "@/components/ScoreRow";
-import { loadGames, loadIndex, loadPlayers, loadTeams } from "@/lib/data";
+import { loadGames, loadGotw, loadIndex, loadPlayers, loadTeams } from "@/lib/data";
+import { gotwFor, type GotwPicks } from "@/lib/gotw";
 import { getFavorites, toggleFavorite } from "@/lib/favorites";
 import { FILTERS, type Filter, groupByDay, passes, POST, weekChips, weekValue } from "@/lib/filters";
 import { matchGame } from "@/lib/search";
@@ -15,6 +17,7 @@ export default function Home() {
   const [season, setSeason] = useState<number | null>(null);
   const [games, setGames] = useState<GameSummary[]>([]);
   const [teams, setTeams] = useState<Record<string, TeamInfo>>({});
+  const [gotw, setGotw] = useState<GotwPicks>({});
   const [players, setPlayers] = useState<PlayerEntry[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [query, setQuery] = useState("");
@@ -38,6 +41,7 @@ export default function Home() {
     if (season === null) return;
     loadGames(season).then(setGames).catch(() => setError(`No games found for ${season}.`));
     loadTeams(season).then(setTeams);
+    loadGotw(season).then(setGotw);
   }, [season]);
 
   const currentWeek = index && season === index.currentSeason
@@ -69,6 +73,8 @@ export default function Home() {
     [games, favorites, currentWeek],
   );
 
+  const featured = searching ? null : gotwFor(gotw, week, games, filter, favorites);
+
   const onToggle = (team: string) => setFavorites(toggleFavorite(team));
 
   if (error && !index) return <p className="empty">{error}</p>;
@@ -93,6 +99,8 @@ export default function Home() {
       <input id="search" className="home-search" type="search" placeholder="Search a team, player or conference..."
         value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search games" />
       {searching && <p className="empty">Searching the whole {season} season.</p>}
+
+      {featured && <GotwCard game={featured.game} why={featured.why} teams={teams} />}
 
       {!searching && favorites.length > 0 && myGames.length > 0 && filter === "all" && (
         <section id="my-teams">

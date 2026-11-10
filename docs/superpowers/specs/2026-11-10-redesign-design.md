@@ -170,3 +170,8 @@ Owner idea, approved 2026-11-10. Built right after R1, with its own plan. It tur
   - **Receivers and running back:** shows their share of team production (for example "31% of receiving yards"). Edges do **not** change, because free data can't honestly measure one player's effect on a unit.
 - **Wording:** edges stay in words (Even / Slight edge / Big edge). Never odds, percentages or "50/50".
 - **Memory:** choices are saved on the device per game (local storage, wrapped so it fails safely); "Reset to defaults" restores them; a banner shows whenever the page differs from the defaults ("What-if: Tommy Carr set Out").
+
+## Added after preview review (owner, 2026-11-10)
+
+- **"Gap" chip renamed** to "Edge: <stat> · <team abbreviation>" (owner). Matchup badge reads "Biggest edge", Preview card "Biggest edges".
+- **Game of the Week ships in this update** (owner), moved up from Slice 3, using the original spec's rule minus swing factors (which don't exist until Slice 2). *My calls:* score = 0.6 x strength (mean percentile of the four passing units) + 0.4 x closeness (100 minus the mean absolute gap); only games with an AP Top 25 team are eligible when the week has any, so a Group of 5 game with schedule-inflated numbers can't headline; the card (v3 mockup design) shows on every filter the game passes; "Why watch" states unit strength and the edge picture, never a prediction. Swing factors join the score after Slice 2.

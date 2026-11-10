@@ -78,7 +78,9 @@ In a game's breakdown, opponents from earlier seasons are tiered on their full-s
 
 **Plain-English stats.** The site labels stats in words ("Interceptions", "Points added per pass") with a one-line explanation. For some stats a lower number is better for one side, for example interceptions for an offense; those rows say so ("Offense: lower is better · Defense: higher is better"). Ranks are always 1st = best for that side, whichever way the number runs.
 
-**The edge card** averages the percentile gap across a passing matchup's stats and maps it to the same Even / Slight / Clear bands. It says who ranks better on these stats, nothing more. The "Biggest gap" badge marks the single stat with the widest gap.
+**The edge card** averages the percentile gap across a passing matchup's stats and maps it to the same Even / Slight / Clear bands. It says who ranks better on these stats, nothing more. The "Biggest edge" badge marks the single stat with the widest gap, and the home page's "Edge: <stat> · <team>" chip names the game's widest gap and the team it favors.
+
+**Game of the Week** is picked from the week's games with an AP Top 25 team (all games if none are ranked). Each is scored 60% on strength (the average national percentile of both passing offenses and both pass defenses) and 40% on closeness (how small the offense-versus-defense gaps are). The card's "Why watch" line says which units rank in the top third of FBS and who holds the edge on paper. It never predicts a winner.
 
 **AP ranks** come from CFBD's copy of the AP Top 25: the latest regular-season poll at or before the game's week. Week 1 uses the preseason poll; bowls and the playoff use the final regular-season poll.
 
