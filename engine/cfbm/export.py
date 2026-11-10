@@ -23,6 +23,7 @@ from cfbm.team_stats import TG_COLUMNS, blended_profile, fbs_only, season_profil
 from cfbm.tiers import assign_tiers
 from cfbm.units import biggest_gap, side_edge, unit_tables
 from cfbm.qb import COLUMNS as PASSER_COLUMNS
+from cfbm.skill import SKILL_COLUMNS, skill_games
 
 
 def to_json_safe(obj):
@@ -86,7 +87,7 @@ class _Data:
         self.teams: dict[int, dict[str, dict]] = {}
         self.venues: dict[int, dict] = fetch.venues(client)
         self.game_by_id: dict[int, dict] = {}
-        tgs, passers = [], []
+        tgs, passers, skill = [], [], []
         for s in seasons_all:
             live = s == live_season
             self.fbs[s] = fetch.fbs_teams(client, s)
@@ -102,13 +103,18 @@ class _Data:
                 raw = fetch.plays(client, s, st, wk, self.games[s])
                 tgs.append(team_game_pass(normalize_plays(raw, s, st, wk)))
                 passers.append(passer_games(fetch.player_box(client, s, st, wk, self.games[s]), s, st, wk))
+                if live:
+                    for cat in ("receiving", "rushing"):
+                        skill.append(skill_games(fetch.skill_box(client, s, st, wk, self.games[s], cat), s, st, wk, cat))
         tgs = [t for t in tgs if not t.empty]
         passers = [p for p in passers if not p.empty]
         self.tg = fbs_only(pd.concat(tgs, ignore_index=True) if tgs else pd.DataFrame(columns=TG_COLUMNS),
                            self.fbs)
         self.passers = pd.concat(passers, ignore_index=True) if passers else pd.DataFrame(columns=PASSER_COLUMNS)
+        skill = [k for k in skill if not k.empty]
+        self.skill = pd.concat(skill, ignore_index=True) if skill else pd.DataFrame(columns=SKILL_COLUMNS)
         # Chronological order (postseason by date, since CFBD numbers every bowl week 1).
-        for frame in (self.tg, self.passers):
+        for frame in (self.tg, self.passers, self.skill):
             if not frame.empty:
                 frame["order"] = [self.orders.get(gid, o) for gid, o in zip(frame["game_id"], frame["order"])]
         self.full_tiers = {s: assign_tiers(season_profile(self.tg, s, None, self.havoc.get(s)), self.fbs[s])

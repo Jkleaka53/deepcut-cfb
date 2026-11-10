@@ -23,10 +23,19 @@ def _plays(gid, home, away, week, n=12):
     return out
 
 
-def _box(gid, home, away):
+def _box(gid, home, away, category="passing"):
     def team(t):
+        base = abs(hash(t)) % 10000
+        if category == "receiving":
+            return {"team": t, "categories": [{"name": "receiving", "types": [
+                {"name": "REC", "athletes": [{"id": str(base + 2 + k), "name": f"{t} WR{k}", "stat": str(5 - k)} for k in range(4)]},
+                {"name": "YDS", "athletes": [{"id": str(base + 2 + k), "name": f"{t} WR{k}", "stat": str(80 - 15 * k)} for k in range(4)]}]}]}
+        if category == "rushing":
+            return {"team": t, "categories": [{"name": "rushing", "types": [
+                {"name": "CAR", "athletes": [{"id": str(base + 9), "name": f"{t} RB", "stat": "15"}]},
+                {"name": "YDS", "athletes": [{"id": str(base + 9), "name": f"{t} RB", "stat": "70"}]}]}]}
         return {"team": t, "categories": [{"name": "passing", "types": [
-            {"name": "C/ATT", "athletes": [{"id": str(abs(hash(t)) % 10000 + 1), "name": f"{t} QB", "stat": "10/20"}]}]}]}
+            {"name": "C/ATT", "athletes": [{"id": str(base + 1), "name": f"{t} QB", "stat": "10/20"}]}]}]}
     return {"id": gid, "teams": [team(home), team(away)]}
 
 
@@ -75,7 +84,7 @@ class WorldClient:
         if path == "/plays":
             return [p for g in wk for p in _plays(g["id"], g["homeTeam"], g["awayTeam"], g["week"])]
         if path == "/games/players":
-            return [_box(g["id"], g["homeTeam"], g["awayTeam"]) for g in wk]
+            return [_box(g["id"], g["homeTeam"], g["awayTeam"], params.get("category", "passing")) for g in wk]
         return []
 
 

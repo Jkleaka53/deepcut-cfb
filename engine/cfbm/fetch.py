@@ -30,6 +30,12 @@ def player_box(client, season: int, season_type: str, week: int, games_list: lis
                       cacheable=week_complete(games_list, season_type, week))
 
 
+def skill_box(client, season: int, season_type: str, week: int, games_list: list[dict], category: str) -> list[dict]:
+    return client.get("/games/players",
+                      {"year": season, "week": week, "seasonType": season_type, "category": category},
+                      cacheable=week_complete(games_list, season_type, week))
+
+
 def advanced_season(client, season: int, live: bool) -> list[dict]:
     return client.get("/stats/season/advanced", {"year": season}, cacheable=not live)
 
