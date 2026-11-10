@@ -20,8 +20,17 @@ EDGE_SLIGHT = 15
 EDGE_CLEAR = 35
 
 # Set by the Task 2 spike (see docs/spike-notes.md).
-PRESSURE_PROXY = "TBD_BY_SPIKE"
+# Scrambles/throwaways are not labeled in free play-by-play, so pass rush uses front-seven havoc.
+PRESSURE_PROXY = "front_seven_havoc"
+# No completion-probability fields on the free tier.
 CPOE_AVAILABLE = False
+
+PLAY_TYPES = {
+    "pass": {"Pass Reception", "Pass Incompletion", "Passing Touchdown"},
+    "sack": {"Sack"},
+    "interception": {"Pass Interception Return", "Interception Return Touchdown", "Interception"},
+    "rush": {"Rush", "Rushing Touchdown"},
+}
 
 DISCLAIMER = "Not for gambling or betting. CFB Matchups is a personal statistics project."
 BOWL_NOTE = "Bowl rosters can differ from season numbers because of opt-outs and transfers."
