@@ -41,3 +41,11 @@ def front7_havoc(raw: list[dict]) -> dict[str, float]:
         if havoc.get("frontSeven") is not None:
             out[row["team"]] = float(havoc["frontSeven"])
     return out
+
+
+def team_info(client, season: int, live: bool = False) -> dict[str, dict]:
+    return {t["school"]: t for t in client.get("/teams", {"year": season}, cacheable=not live)}
+
+
+def venues(client) -> dict[int, dict]:
+    return {int(v["id"]): v for v in client.get("/venues", {}) if v.get("id") is not None}

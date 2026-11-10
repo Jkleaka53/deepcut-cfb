@@ -59,3 +59,18 @@ def test_front7_havoc_map():
     raw = [{"team": "Texas Tech", "defense": {"havoc": {"frontSeven": 0.09}}},
            {"team": "Nowhere", "defense": {"havoc": None}}]
     assert fetch.front7_havoc(raw) == {"Texas Tech": 0.09}
+
+
+def test_team_info_keyed_by_school():
+    row = {"id": 277, "school": "West Virginia", "abbreviation": "WVU", "conference": "Big 12",
+           "color": "#eaaa00", "alternateColor": "#002855", "logos": ["a.png", "b.png"]}
+    c = FakeClient({"/teams": [row]})
+    out = fetch.team_info(c, 2025, live=False)
+    assert out["West Virginia"]["abbreviation"] == "WVU"
+    assert c.calls[-1] == ("/teams", {"year": 2025}, True)
+
+
+def test_venues_keyed_by_int_id():
+    c = FakeClient({"/venues": [{"id": 3801, "name": "Autzen Stadium", "latitude": 44.05, "longitude": -123.07}]})
+    out = fetch.venues(c)
+    assert out[3801]["name"] == "Autzen Stadium"

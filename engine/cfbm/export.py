@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from cfbm import config, fetch
+from cfbm import colors, config, fetch
 from cfbm.plays import game_orders, normalize_plays, order_key
 from cfbm.qb import career, current_starter, passer_games
 from cfbm.splits import split_table, tier_lookup
@@ -40,6 +40,21 @@ def _write(path: Path, data) -> None:
     path.write_text(json.dumps(to_json_safe(data), ensure_ascii=False, separators=(",", ":"), allow_nan=False))
 
 
+def team_entries(info: dict[str, dict], fbs: set[str]) -> list[dict]:
+    out = []
+    for school in sorted(fbs):
+        t = info.get(school, {})
+        logos = t.get("logos") or []
+        c, alt = t.get("color"), t.get("alternateColor")
+        out.append({
+            "school": school, "id": t.get("id"), "abbr": t.get("abbreviation") or school[:4].upper(),
+            "conference": t.get("conference"), "fill": colors.fill_for_white_text(c, alt),
+            "textLight": colors.text_on("#ffffff", c, alt), "textDark": colors.text_on("#13171c", c, alt),
+            "logo": logos[0] if len(logos) > 0 else None, "logoDark": logos[1] if len(logos) > 1 else None,
+        })
+    return out
+
+
 def game_summary(g: dict, fbs: set[str]) -> dict:
     return {
         "id": g["id"], "season": g["season"], "week": g["week"], "seasonType": g["seasonType"],
@@ -59,10 +74,13 @@ class _Data:
         self.games: dict[int, list[dict]] = {}
         self.havoc: dict[int, dict[str, float]] = {}
         self.orders: dict[int, int] = {}
+        self.teams: dict[int, dict[str, dict]] = {}
+        self.venues: dict[int, dict] = fetch.venues(client)
         tgs, passers = [], []
         for s in seasons_all:
             live = s == live_season
             self.fbs[s] = fetch.fbs_teams(client, s)
+            self.teams[s] = fetch.team_info(client, s, live)
             self.games[s] = [g for g in fetch.games(client, s, live)
                              if g["homeTeam"] in self.fbs[s] or g["awayTeam"] in self.fbs[s]]
             self.havoc[s] = fetch.front7_havoc(fetch.advanced_season(client, s, live))
@@ -186,6 +204,7 @@ def build(client, out_dir: Path, seasons=config.DISPLAY_SEASONS, now: datetime |
     d = _Data(client, seasons_all, live)
 
     for s in seasons:
+        _write(out_dir / str(s) / "teams.json", team_entries(d.teams[s], d.fbs[s]))
         summaries = [game_summary(g, d.fbs[s]) for g in d.games[s]]
         _write(out_dir / str(s) / "games.json", summaries)
         for g, summ in zip(d.games[s], summaries):

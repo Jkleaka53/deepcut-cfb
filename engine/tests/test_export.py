@@ -55,6 +55,14 @@ class WorldClient:
         self.calls_made += 1
         if path == "/teams/fbs":
             return [{"school": t} for t in FBS]
+        if path == "/teams":
+            return [{"id": 100 + i, "school": t, "abbreviation": t * 2, "conference": "Conf", "color": "#eaaa00",
+                     "alternateColor": "#002855", "logos": [f"https://x/{t}.png", f"https://x/d/{t}.png"]}
+                    for i, t in enumerate(FBS)] + [{"id": 999, "school": "FCS U", "abbreviation": "FU",
+                                                    "conference": "X", "color": None, "alternateColor": None, "logos": None}]
+        if path == "/venues":
+            return [{"id": 1, "name": "Stadium", "city": "Town", "state": "ST", "latitude": 40.0, "longitude": -80.0,
+                     "dome": False, "grass": True, "timezone": "America/New_York"}]
         if path == "/games":
             return [g for g in self.games if g["seasonType"] == params["seasonType"] and params["year"] == 2025]
         if path == "/stats/season/advanced":
@@ -183,3 +191,11 @@ def test_current_week_keeps_game_awaiting_final_data():
     games = [{"id": 2, "week": 10, "seasonType": "regular", "startDate": "2026-11-08T02:30:00.000Z", "completed": False},
              {"id": 3, "week": 11, "seasonType": "regular", "startDate": "2026-11-14T19:00:00.000Z", "completed": False}]
     assert _current(games, now) == (10, "regular")
+
+
+def test_teams_json(out):
+    teams = _load(out / "2025" / "teams.json")
+    assert sorted(t["school"] for t in teams) == FBS
+    t = teams[0]
+    assert set(t) == {"school", "id", "abbr", "conference", "fill", "textLight", "textDark", "logo", "logoDark"}
+    assert t["fill"] == "#002855" and t["logo"].endswith(".png")
