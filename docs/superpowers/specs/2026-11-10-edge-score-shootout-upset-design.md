@@ -121,6 +121,11 @@ Small card under Game of the Week:
 - Pick: the game where our edge score disagrees most with the pros (underdog has the edge, or heavy favorite has only a slight one). Skip games with no line.
 - Backtest on past seasons: how often picks ended in an upset or a much closer game than the line expected. Report to the owner before shipping.
 
+### Owner decisions (2026-11-10, after checking the data)
+
+- CFBD's free tier has no ESPN win odds for 2026 (providers: DraftKings, Bovada). Owner chose **DraftKings win %**, from DraftKings' moneylines with the bookmaker's margin removed, labeled "DraftKings odds". Only the two percentages are shown, never the spread or moneyline.
+- History: moneylines exist only for recent seasons, but spreads go back to 2015, so the backtest turns each spread into the pros' win chance (a curve fitted on the history itself).
+
 ---
 
 ## Decisions from the builder check (all my calls)
@@ -137,7 +142,7 @@ Mockups referenced above are in `docs/superpowers/specs/2026-11-10-mockups/` (`e
 
 - No notifications, accounts or server; still a static site refreshed by the workflow.
 - No redesign of the existing sections beyond what each slice names.
-- No change to Game of the Week's selection rules.
+- No change to Game of the Week's selection rules. (Superseded 2026-11-10 by the owner: Game of the Week now counts the running game, uses the edge score for closeness, and prefers games with two ranked teams, then one, then any.)
 
 ## Anti-goals (would be a failure even if it works)
 
