@@ -39,3 +39,20 @@ One weekly pick restricted to close games: cover 49.6%, won 37.6% vs book 35.9% 
 ## Verdict
 
 Fails the spec's bar as planned. The pros' line is hard to beat; our model adds a modest, real-looking edge only in close games (+5 points of outright wins over 849 games), and a single weekly pick is too noisy to show it.
+
+## Iteration (owner chose "Iterate first"): opponent-adjusted stats
+
+Each team's season-to-date stat is adjusted for its opponents, as of kickoff only: offense stat minus w x (that opponent's defense average so far minus the league average so far), and the mirror for defense. Same leave-one-season-out test.
+
+| w | Model log loss | Favored won | Weekly pick covered | Won outright | Book said |
+|---|---|---|---|---|---|
+| raw (0) | 0.5764 | 70.2% | 45.7% | 21.7% | 23.7% |
+| 0.4 | 0.5662 | 71.1% | 51.6% | 32.8% | 25.5% |
+| 0.6 | 0.5632 | 71.0% | 57.8% | 34.4% | 26.0% |
+| 0.8 | **0.5626** | 70.8% | 52.7% | 31.0% | 25.9% |
+| 1.0 | 0.5647 | 70.2% | 54.4% | 29.6% | 25.2% |
+| 1.4 | 0.5777 | 69.2% | 48.8% | 27.2% | 24.8% |
+
+w chosen by model log loss alone (0.8), not by the upset numbers. Every w from 0.4 to 1.0 passes both bars. At 0.8 the planned weekly pick PASSES: covered 52.7% (> 50%), won outright 31.0% vs book 25.9%.
+
+Adopting it changes the swing model, so it moves the live edge scores, swing factors and Game of the Week closeness as well; the Even/Big cutoffs would be re-run.
