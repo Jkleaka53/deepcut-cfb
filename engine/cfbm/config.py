@@ -22,6 +22,10 @@ EARLY_SEASON_LAST_WEEK = 4
 EDGE_SLIGHT = 15
 EDGE_CLEAR = 35
 
+# Edge score (0-10) cutoffs: below SLIGHT is Even, at or above BIG is Big. Placeholders until the backtest.
+EDGE_SCORE_SLIGHT = 1.0
+EDGE_SCORE_BIG = 5.0
+
 # Set by the Task 2 spike (see docs/spike-notes.md).
 # Scrambles/throwaways are not labeled in free play-by-play, so pass rush uses front-seven havoc.
 PRESSURE_PROXY = "front_seven_havoc"
