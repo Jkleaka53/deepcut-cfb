@@ -28,6 +28,7 @@ from cfbm.skill import SKILL_COLUMNS, skill_games
 from cfbm.watch import watch_list
 from cfbm.backup import backup_block
 from cfbm.storylines import game_facts, storylines
+from cfbm.shootout import SHOOT_FEATURES
 from cfbm.swing import swing_block
 from cfbm.swing_data import pregame, team_games, training_frame
 from cfbm.swing_model import train
@@ -196,6 +197,17 @@ def training_data(client, seasons) -> tuple[pd.DataFrame, pd.DataFrame] | None:
     if frame is None or len(frame) < config.MIN_TRAIN_GAMES:
         return None
     return frame, tg
+
+
+def shootout_inputs(client, seasons) -> tuple[pd.DataFrame, dict[int, dict], dict[int, set[str]]]:
+    """Shootout team-game stats, games and FBS sets for the given seasons (cached CFBD calls)."""
+    adv, games, fbs = [], {}, {}
+    for y in seasons:
+        adv += fetch.game_advanced(client, y, False)
+        fbs[y] = fetch.fbs_teams(client, y)
+        for g in fetch.games(client, y, False):
+            games[g["id"]] = g
+    return team_games(adv, SHOOT_FEATURES), games, fbs
 
 
 def train_model(client, seasons) -> dict | None:
