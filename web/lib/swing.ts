@@ -1,5 +1,5 @@
 import { ordinal } from "./format";
-import type { Driver, GameSummary, OverallEdge, Section, UnitRow } from "./types";
+import type { Driver, DriverDetail, GameSummary, OverallEdge, Section, UnitRow } from "./types";
 
 export const BAND = { even: "Even", slight: "Slight edge", clear: "Big edge" } as const;
 
@@ -35,4 +35,11 @@ export function chipText(g: Pick<GameSummary, "keyFactor" | "gap">, abbr: string
 export function edgeChipText(e: GameSummary["edge"], abbr: string): string | null {
   if (!e || e.band === "even" || !e.team) return null;
   return `${BAND[e.band]} · ${abbr} ${e.score.toFixed(1)}`;
+}
+
+export function formatStat(v: number | null | undefined, f: DriverDetail["format"]): string {
+  if (v == null || Number.isNaN(v)) return "n/a";
+  if (f === "pct") return `${(v * 100).toFixed(1)}%`;
+  if (f === "epa") return `${v >= 0 ? "+" : ""}${v.toFixed(2)}`;
+  return v.toFixed(2);
 }

@@ -185,6 +185,17 @@ export interface Driver {
   of: number;
   cue: string;
   score: number;
+  /** Opened view of a swing reason; missing in old JSON (render flat). */
+  detail?: DriverDetail;
+}
+
+export interface DriverDetail {
+  meaning: string;
+  format: "pct" | "epa" | "num";
+  offValue: number | null;
+  defAllows: number | null;
+  fbsAvg: number | null;
+  why: string;
 }
 
 export interface Storyline { text: string; sample: string; kind: "storyline" }
