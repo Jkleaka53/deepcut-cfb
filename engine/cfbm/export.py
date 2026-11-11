@@ -183,8 +183,8 @@ def _section(d: _Data, g: dict, off: str, dfn: str, qb, ranked: pd.DataFrame, lo
     return {"offenseTeam": off, "defenseTeam": dfn, "units": [], "splits": splits, "qbVs": qb_vs}
 
 
-def train_model(client, seasons) -> dict | None:
-    """Fit the swing-factor model on past seasons (cached CFBD calls). None if there isn't enough data."""
+def training_data(client, seasons) -> tuple[pd.DataFrame, pd.DataFrame] | None:
+    """Training frame and per-team-game stats for past seasons (cached CFBD calls). None if too few games."""
     adv, games, fbs = [], {}, {}
     for y in seasons:
         adv += fetch.game_advanced(client, y, False)
@@ -195,7 +195,13 @@ def train_model(client, seasons) -> dict | None:
     frame = training_frame(tg, games, fbs) if not tg.empty else None
     if frame is None or len(frame) < config.MIN_TRAIN_GAMES:
         return None
-    return train(frame, tg)
+    return frame, tg
+
+
+def train_model(client, seasons) -> dict | None:
+    """Fit the swing-factor model on past seasons. None if there isn't enough data."""
+    data = training_data(client, seasons)
+    return train(*data) if data else None
 
 
 def _swing(d: _Data, g: dict, order: int, qbs: dict, model: dict) -> dict:

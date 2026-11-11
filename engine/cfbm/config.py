@@ -22,9 +22,11 @@ EARLY_SEASON_LAST_WEEK = 4
 EDGE_SLIGHT = 15
 EDGE_CLEAR = 35
 
-# Edge score (0-10) cutoffs: below SLIGHT is Even, at or above BIG is Big. Placeholders until the backtest.
-EDGE_SCORE_SLIGHT = 1.0
-EDGE_SCORE_BIG = 5.0
+# Edge score (0-10) cutoffs: below SLIGHT is Even, at or above BIG is Big. Set 2026-11-10 by
+# `cfbm.cli edge-cutoffs` (leave-one-season-out, 5613 games 2015-2025 minus 2020):
+# Even 1099 games, favored team won 53.5%; Slight 3088, 69.1%; Big 1426, 85.3%.
+EDGE_SCORE_SLIGHT = 2.0
+EDGE_SCORE_BIG = 7.5
 
 # Set by the Task 2 spike (see docs/spike-notes.md).
 # Scrambles/throwaways are not labeled in free play-by-play, so pass rush uses front-seven havoc.
