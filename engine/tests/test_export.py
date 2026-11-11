@@ -91,7 +91,7 @@ class WorldClient:
             return []
         if path == "/stats/season/advanced":
             return [{"team": t, "defense": {"havoc": {"frontSeven": 0.05 + i / 100}}} for i, t in enumerate(FBS)]
-        wk = [g for g in self.games if g["seasonType"] == params["seasonType"] and g["week"] == params["week"]
+        wk = [g for g in self.games if g["seasonType"] == params.get("seasonType") and g["week"] == params.get("week")
               and g["completed"] and params["year"] == 2025]
         if path == "/plays":
             return [p for g in wk for p in _plays(g["id"], g["homeTeam"], g["awayTeam"], g["week"])]
@@ -517,3 +517,50 @@ def test_pulldowns_show_real_stats_while_model_reads_adjusted(tmp_path, monkeypa
     assert common and all(shown_raw[k] == shown_adj[k] for k in common)
     scores = lambda ms: {g: (sw.get("overallEdge") or {}).get("score") for g, sw in ms.items() if sw}  # noqa: E731
     assert scores(raw) != scores(adj)
+
+
+class LinesClient(AdvClient):
+    """AdvClient plus betting lines: DraftKings on every FBS game except the first, which has Bovada only."""
+
+    def get(self, path, params, *, cacheable=True):
+        if path == "/lines":
+            out, first = [], True
+            for g in self.games:
+                if g["homeTeam"] not in FBS or g["awayTeam"] not in FBS:
+                    continue
+                if first:
+                    first = False
+                    self.bovada_only = g["id"]
+                    ls = [{"provider": "Bovada", "spread": 20, "homeMoneyline": 900, "awayMoneyline": -2000}]
+                else:
+                    h, a = (250, -300) if g["id"] % 2 == 0 else (-300, 250)
+                    ls = [{"provider": "DraftKings", "spread": 7 if h > 0 else -7, "homeMoneyline": h, "awayMoneyline": a}]
+                out.append({"id": g["id"], "homeTeam": g["homeTeam"], "awayTeam": g["awayTeam"], "lines": ls})
+            return out
+        return super().get(path, params, cacheable=cacheable)
+
+
+def test_upset_exports_only_draftkings_odds(tmp_path, monkeypatch):
+    import cfbm.swing
+    monkeypatch.setattr(cfbm.swing, "MIN_PRIOR", 1)
+    client = LinesClient()
+    out = _model_build(tmp_path, client)
+    picks = _load(out / "2025" / "upset.json")
+    assert picks
+    gotw, shoot = _load(out / "2025" / "gotw.json"), _load(out / "2025" / "shootout.json")
+    for wk, p in picks.items():
+        assert set(p) == {"id", "why", "odds"}
+        assert set(p["odds"]) == {"source", "home", "away"} and p["odds"]["source"] == "DraftKings"
+        assert p["odds"]["home"] + p["odds"]["away"] == 100
+        assert "%" not in p["why"]
+        assert p["id"] not in {(gotw.get(wk) or {}).get("id"), (shoot.get(wk) or {}).get("id")}
+        assert p["id"] != client.bovada_only
+    docs = [_load(f) for f in (out / "2025" / "matchups").glob("*.json")] + [_load(out / "2025" / "games.json")]
+    for doc in docs:
+        for k, _, _ in _walk(doc):
+            assert not any(bad in k.lower() for bad in ("prob", "moneyline", "spread", "odds")), k
+
+
+def test_upset_file_empty_without_lines(tmp_path):
+    out = _model_build(tmp_path)
+    assert _load(out / "2025" / "upset.json") == {}

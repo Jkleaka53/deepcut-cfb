@@ -74,3 +74,52 @@ def gap(our_home: float, book_home: float) -> tuple[str, float] | None:
     else:
         return None
     return (side, ours - book) if ours > book else None
+
+
+def odds_block(book_home: float) -> dict:
+    """The only win % the site publishes: DraftKings' own, whole numbers adding to 100."""
+    home = max(1, min(99, round(100 * book_home)))  # never show a sure thing
+    return {"source": PROVIDER, "home": home, "away": 100 - home}
+
+
+def _ord(n: int) -> str:
+    from cfbm.shootout import ordinal
+    return ordinal(int(n))
+
+
+def why_text(m: dict, dog: str, fav: str) -> str:
+    """'Why that could be wrong', in words: the underdog's strongest swing factor, then our edge score's view."""
+    sw = m.get("swing") or {}
+    parts = []
+    d = next((x for x in sw.get("drivers") or [] if x.get("favors") == dog), None)
+    if d:
+        if d["offense"] == dog:
+            parts.append(f"{dog} has the edge in {d['label']}: {dog}'s offense ranks {_ord(d['offRank'])} against a "
+                         f"{fav} defense that ranks {_ord(d['defRank'])} of {d['of']}.")
+        else:
+            parts.append(f"{dog} has the edge in {d['label']}: {dog}'s defense ranks {_ord(d['defRank'])} against a "
+                         f"{fav} offense that ranks {_ord(d['offRank'])} of {d['of']}.")
+    e = sw.get("overallEdge") or {}
+    if e.get("edge") == "even" or not e.get("team"):
+        parts.append("Our edge score has it even.")
+    elif e["team"] == dog:
+        parts.append(f"Our edge score leans {dog}, {e['score']} of 10.")
+    elif e.get("edge") == "slight":
+        parts.append(f"Our edge score has {fav} by only {e['score']} of 10.")
+    else:
+        parts.append(f"Our edge score has {fav} by {e['score']} of 10.")
+    return " ".join(parts)
+
+
+def pick(cands: list[tuple[dict, float, dict]], skip: dict[str, set[int]]) -> dict[str, dict]:
+    """Per week: the biggest gap, skipping that week's Game of the Week and Shootout pick."""
+    from cfbm.gotw import _week
+
+    best: dict[str, tuple[float, dict, dict]] = {}
+    for g, gp, info in cands:
+        wk = _week(g)
+        if int(g["id"]) in skip.get(wk, set()):
+            continue
+        if wk not in best or gp > best[wk][0]:
+            best[wk] = (gp, g, info)
+    return {wk: {"id": int(g["id"]), "why": info["why"], "odds": info["odds"]} for wk, (_, g, info) in best.items()}

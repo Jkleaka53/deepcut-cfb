@@ -28,7 +28,7 @@ from cfbm.skill import SKILL_COLUMNS, skill_games
 from cfbm.watch import watch_list
 from cfbm.backup import backup_block
 from cfbm.storylines import game_facts, storylines
-from cfbm import shootout
+from cfbm import shootout, upset
 from cfbm.shootout import SHOOT_COLS, SHOOT_FEATURES
 from cfbm.swing import swing_block
 from cfbm.swing_data import pregame, pregame_adjusted, team_games, training_frame
@@ -262,6 +262,35 @@ def shootout_picks(d: _Data, built: list[dict], model: dict, gotw: dict) -> tupl
     return shootout.pick(scored, gotw)
 
 
+def upset_picks(d: _Data, built: list[dict], model: dict, lines: dict[int, dict], gotw: dict,
+                shoot: dict) -> dict:
+    """Upset Watch: DraftKings' underdog that our (internal) chance likes most, per week."""
+    if not model or not lines:
+        return {}
+    cands = []
+    for m in built:
+        sw = m.get("swing") or {}
+        g = d.game_by_id.get(m["game"]["id"])
+        if g is None or not sw.get("overallEdge"):
+            continue
+        bh = upset.book_prob(lines.get(g["id"]) or {})
+        if bh is None:
+            continue
+        order = d.orders.get(g["id"], order_key(g["seasonType"], g["week"]))
+        home, away = g["homeTeam"], g["awayTeam"]
+        oh = upset.our_prob(model, _pregame(d, g, order), home, away, bool(g.get("neutralSite")))
+        gp = None if oh is None else upset.gap(oh, bh)
+        if gp is None:
+            continue
+        dog, fav = (home, away) if gp[0] == "home" else (away, home)
+        cands.append((g, gp[1], {"why": upset.why_text(m, dog, fav), "odds": upset.odds_block(bh)}))
+    skip: dict[str, set[int]] = {}
+    for picks in (gotw, shoot):
+        for wk, p in picks.items():
+            skip.setdefault(wk, set()).add(int(p["id"]))
+    return upset.pick(cands, skip)
+
+
 def train_shootout(client, seasons) -> dict | None:
     rows = shootout.training_rows(*shootout_inputs(client, seasons))
     return shootout.fit(rows) if len(rows) else None
@@ -464,6 +493,8 @@ def build(client, out_dir: Path, seasons=config.DISPLAY_SEASONS, now: datetime |
         _write(out_dir / str(s) / "games.json", summaries)
         _write(out_dir / str(s) / "gotw.json", gotw)
         _write(out_dir / str(s) / "shootout.json", shoot)
+        lines = {ln["id"]: ln for ln in fetch.lines(client, s, s == live)}
+        _write(out_dir / str(s) / "upset.json", upset_picks(d, built, model, lines, gotw, shoot))
 
     week, st = _current(d.games[live], now) if d.games[live] else (1, "regular")
     _write(out_dir / "index.json", {

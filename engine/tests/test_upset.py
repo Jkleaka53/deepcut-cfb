@@ -64,3 +64,53 @@ def test_neutral_site_no_home_tilt():
     assert our_prob(m, p, "Home", "Away", neutral=True) == pytest.approx(0.5)
     assert our_prob(m, p, "Home", "Away", neutral=False) > 0.5
     assert our_prob(m, p, "Nobody", "Away", neutral=False) is None
+
+
+from cfbm.upset import odds_block, pick, why_text  # noqa: E402
+
+
+def test_odds_block_sums_to_100():
+    assert odds_block(0.567) == {"source": "DraftKings", "home": 57, "away": 43}
+    assert odds_block(0.995) == {"source": "DraftKings", "home": 99, "away": 1}
+
+
+def _g(gid, week=11):
+    return {"id": gid, "week": week, "seasonType": "regular"}
+
+
+def test_pick_skips_gotw_and_shootout():
+    cands = [(_g(1), 0.30, {"why": "a", "odds": {}}), (_g(2), 0.25, {"why": "b", "odds": {}}),
+             (_g(3), 0.20, {"why": "c", "odds": {}})]
+    out = pick(cands, {"11": {1, 2}})
+    assert out == {"11": {"id": 3, "why": "c", "odds": {}}}
+    assert pick([], {}) == {}
+
+
+def _m(drivers, edge):
+    return {"swing": {"drivers": drivers, "overallEdge": edge}}
+
+
+EXPL = {"key": "explosive", "label": "Big plays", "offense": "Iowa State", "defense": "Kansas State",
+        "favors": "Iowa State", "offRank": 9, "defRank": 101, "of": 134}
+
+
+def test_why_text_with_driver():
+    m = _m([{**EXPL, "favors": "Kansas State", "key": "sd_sr", "label": "Early-down success",
+             "offense": "Kansas State", "defense": "Iowa State"}, EXPL],
+           {"edge": "slight", "team": "Kansas State", "score": 3.1})
+    assert why_text(m, "Iowa State", "Kansas State") == (
+        "Iowa State has the edge in Big plays: Iowa State's offense ranks 9th against a Kansas State defense "
+        "that ranks 101st of 134. Our edge score has Kansas State by only 3.1 of 10.")
+
+
+def test_why_text_defense_driver_and_dog_lean():
+    d = {**EXPL, "offense": "Kansas State", "defense": "Iowa State", "offRank": 120, "defRank": 12}
+    m = _m([d], {"edge": "slight", "team": "Iowa State", "score": 2.4})
+    assert why_text(m, "Iowa State", "Kansas State") == (
+        "Iowa State has the edge in Big plays: Iowa State's defense ranks 12th against a Kansas State offense "
+        "that ranks 120th of 134. Our edge score leans Iowa State, 2.4 of 10.")
+
+
+def test_why_text_without_driver():
+    m = _m([{**EXPL, "favors": "Kansas State"}], {"edge": "even", "team": None, "score": 1.2})
+    assert why_text(m, "Iowa State", "Kansas State") == "Our edge score has it even."
