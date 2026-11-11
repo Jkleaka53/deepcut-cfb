@@ -14,3 +14,8 @@ export function pickFor(picks: GotwPicks, week: string, games: GameSummary[], fi
 }
 
 export const gotwFor = pickFor;
+
+/** The reason for a game that is some week's pick, or null. */
+export function pickWhyFor(picks: GotwPicks, id: number): string | null {
+  return Object.values(picks).find((p) => p.id === id)?.why ?? null;
+}

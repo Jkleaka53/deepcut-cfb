@@ -124,7 +124,7 @@ export default function Home() {
       {searching && <p className="empty">Searching the whole {season} season.</p>}
 
       {featured && <GotwCard game={featured.game} why={featured.why} teams={teams} />}
-      {shootout && <PickCard tag="Shootout of the Week" game={shootout.game} why={shootout.why} teams={teams} />}
+      {shootout && <PickCard tag="Shootout of the Week" game={shootout.game} teams={teams} />}
 
       {!searching && favorites.length > 0 && myGames.length > 0 && filter === "all" && (
         <section id="my-teams">

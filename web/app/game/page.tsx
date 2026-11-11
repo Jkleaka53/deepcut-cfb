@@ -18,7 +18,9 @@ import Hero from "@/components/matchup/Hero";
 import QbTiers from "@/components/matchup/QbTiers";
 import SectionTabs from "@/components/matchup/SectionTabs";
 import TeamLogo from "@/components/TeamLogo";
-import { loadMatchup, loadTeams } from "@/lib/data";
+import { loadMatchup, loadShootout, loadTeams } from "@/lib/data";
+import { pickWhyFor } from "@/lib/gotw";
+import ShootoutNote from "@/components/matchup/ShootoutNote";
 import { passingRows, runView, topGaps, visibleTabs } from "@/lib/matchup";
 import { normalizeMatchup } from "@/lib/normalize";
 import type { Matchup, Section, TeamInfo } from "@/lib/types";
@@ -62,6 +64,7 @@ function MatchupView() {
   const [missing, setMissing] = useState(false);
   const [out, setOut] = useState<Set<number>>(new Set());
   const [watched, setWatched] = useState<number[]>([]);
+  const [shootWhy, setShootWhy] = useState<string | null>(null);
   useEffect(() => setWatched(getWatch()), []);
 
   useEffect(() => {
@@ -74,6 +77,8 @@ function MatchupView() {
       setM(nm);
     }).catch(() => setMissing(true));
     loadTeams(season).then(setTeams);
+    setShootWhy(null);
+    loadShootout(season).then((p) => setShootWhy(pickWhyFor(p, id)));
   }, [season, id]);
 
   const base = raw;
@@ -107,6 +112,7 @@ function MatchupView() {
       </div>
       <p className="crumb">{g.seasonType === "postseason" ? `${g.season} postseason` : `${g.season} · Week ${g.week}`}</p>
       <Hero m={m} teams={teams} />
+      {shootWhy && <ShootoutNote why={shootWhy} />}
       {banner && <WhatIfBanner text={banner} canReset={differs(out, defaults)} onReset={reset} />}
       {m.notes.map((n) => <div key={n} className="callout">{n}</div>)}
       <SectionTabs show={tabs} />
