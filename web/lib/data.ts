@@ -1,5 +1,6 @@
 import type { GameSummary, Index, Matchup, PlayerEntry, TeamInfo } from "./types";
 import type { GotwPicks } from "./gotw";
+import type { UpsetPick } from "./types";
 
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(path);
@@ -33,6 +34,14 @@ export async function loadGotw(season: number): Promise<GotwPicks> {
 export async function loadShootout(season: number): Promise<GotwPicks> {
   try {
     return await getJson<GotwPicks>(`/data/${season}/shootout.json`);
+  } catch {
+    return {};
+  }
+}
+
+export async function loadUpset(season: number): Promise<Record<string, UpsetPick>> {
+  try {
+    return await getJson<Record<string, UpsetPick>>(`/data/${season}/upset.json`);
   } catch {
     return {};
   }

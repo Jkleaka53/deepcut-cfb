@@ -18,9 +18,9 @@ import Hero from "@/components/matchup/Hero";
 import QbTiers from "@/components/matchup/QbTiers";
 import SectionTabs from "@/components/matchup/SectionTabs";
 import TeamLogo from "@/components/TeamLogo";
-import { loadMatchup, loadShootout, loadTeams } from "@/lib/data";
+import { loadMatchup, loadShootout, loadTeams, loadUpset } from "@/lib/data";
 import { pickWhyFor } from "@/lib/gotw";
-import ShootoutNote from "@/components/matchup/ShootoutNote";
+import PickNote from "@/components/matchup/PickNote";
 import { passingRows, runView, topGaps, visibleTabs } from "@/lib/matchup";
 import { normalizeMatchup } from "@/lib/normalize";
 import type { Matchup, Section, TeamInfo } from "@/lib/types";
@@ -65,6 +65,7 @@ function MatchupView() {
   const [out, setOut] = useState<Set<number>>(new Set());
   const [watched, setWatched] = useState<number[]>([]);
   const [shootWhy, setShootWhy] = useState<string | null>(null);
+  const [upsetWhy, setUpsetWhy] = useState<string | null>(null);
   useEffect(() => setWatched(getWatch()), []);
 
   useEffect(() => {
@@ -79,6 +80,8 @@ function MatchupView() {
     loadTeams(season).then(setTeams);
     setShootWhy(null);
     loadShootout(season).then((p) => setShootWhy(pickWhyFor(p, id)));
+    setUpsetWhy(null);
+    loadUpset(season).then((p) => setUpsetWhy(pickWhyFor(p, id)));
   }, [season, id]);
 
   const base = raw;
@@ -112,7 +115,8 @@ function MatchupView() {
       </div>
       <p className="crumb">{g.seasonType === "postseason" ? `${g.season} postseason` : `${g.season} · Week ${g.week}`}</p>
       <Hero m={m} teams={teams} />
-      {shootWhy && <ShootoutNote why={shootWhy} />}
+      {shootWhy && <PickNote tag="Shootout of the Week" why={shootWhy} />}
+      {upsetWhy && <PickNote tag="Upset Watch" heading="Why that could be wrong" why={upsetWhy} />}
       {banner && <WhatIfBanner text={banner} canReset={differs(out, defaults)} onReset={reset} />}
       {m.notes.map((n) => <div key={n} className="callout">{n}</div>)}
       <SectionTabs show={tabs} />

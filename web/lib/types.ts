@@ -240,3 +240,7 @@ export interface TeamRecord {
   confLosses: number;
   conference: string | null;
 }
+
+/** DraftKings' own win odds for the Upset Watch game (the only win % the site shows). */
+export interface UpsetOdds { source: string; home: number; away: number }
+export interface UpsetPick { id: number; why: string; odds: UpsetOdds }

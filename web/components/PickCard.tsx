@@ -7,8 +7,8 @@ import type { GameSummary, TeamInfo } from "@/lib/types";
 const INK = "#0b1220";
 
 /** A slim featured card under Game of the Week, in the same team-color split. The reason lives on the game page. */
-export default function PickCard({ tag, game: g, teams }:
-  { tag: string; game: GameSummary; teams: Record<string, TeamInfo> }) {
+export default function PickCard({ tag, game: g, teams, children }:
+  { tag: string; game: GameSummary; teams: Record<string, TeamInfo>; children?: React.ReactNode }) {
   const away = teams[g.away], home = teams[g.home];
   const final = g.completed && g.awayPoints !== null && g.homePoints !== null;
   const body = (
@@ -22,6 +22,7 @@ export default function PickCard({ tag, game: g, teams }:
           <TeamLogo team={home} name={g.home} size={24} tile /></span>
       </div>
       <div className="pick-meta"><Clock className="icon sm" aria-hidden />{final ? "Final" : localKickoff(g.start, g.startTimeTBD)}</div>
+      {children}
     </>
   );
   const style = { background: `linear-gradient(115deg, ${away?.fill ?? INK} 0 49.6%, ${home?.fill ?? INK} 50.4% 100%)` };

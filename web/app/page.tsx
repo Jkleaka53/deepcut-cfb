@@ -5,14 +5,15 @@ import { Bell, Star } from "lucide-react";
 import ChipRow from "@/components/ChipRow";
 import GotwCard from "@/components/GotwCard";
 import PickCard from "@/components/PickCard";
+import UpsetCard from "@/components/UpsetCard";
 import ScoreRow from "@/components/ScoreRow";
-import { loadGames, loadGotw, loadIndex, loadPlayers, loadShootout, loadTeams } from "@/lib/data";
+import { loadGames, loadGotw, loadIndex, loadPlayers, loadShootout, loadTeams, loadUpset } from "@/lib/data";
 import { gotwFor, pickFor, type GotwPicks } from "@/lib/gotw";
 import { getFavorites, toggleFavorite } from "@/lib/favorites";
 import { getWatch, toggleWatch } from "@/lib/watchlist";
 import { FILTERS, type Filter, groupByDay, loadView, myTeamGames, passes, POST, saveView, weekChips, weekValue } from "@/lib/filters";
 import { matchGame } from "@/lib/search";
-import type { GameSummary, Index, PlayerEntry, TeamInfo } from "@/lib/types";
+import type { GameSummary, Index, PlayerEntry, TeamInfo, UpsetPick } from "@/lib/types";
 
 export default function Home() {
   const [index, setIndex] = useState<Index | null>(null);
@@ -21,6 +22,7 @@ export default function Home() {
   const [teams, setTeams] = useState<Record<string, TeamInfo>>({});
   const [gotw, setGotw] = useState<GotwPicks>({});
   const [shoot, setShoot] = useState<GotwPicks>({});
+  const [upsets, setUpsets] = useState<Record<string, UpsetPick>>({});
   const [players, setPlayers] = useState<PlayerEntry[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [watched, setWatched] = useState<number[]>([]);
@@ -55,6 +57,7 @@ export default function Home() {
     loadTeams(season).then(setTeams);
     loadGotw(season).then(setGotw);
     loadShootout(season).then(setShoot);
+    loadUpset(season).then(setUpsets);
   }, [season]);
 
   useEffect(() => {
@@ -89,6 +92,7 @@ export default function Home() {
 
   const featured = searching ? null : gotwFor(gotw, week, games, filter, favorites);
   const shootout = searching ? null : pickFor(shoot, week, games, filter, favorites);
+  const upsetPick = searching ? null : pickFor(upsets, week, games, filter, favorites);
 
   const onToggle = (team: string) => setFavorites(toggleFavorite(team));
   const onWatch = (id: number) => setWatched(toggleWatch(id));
@@ -122,6 +126,7 @@ export default function Home() {
 
       {featured && <GotwCard game={featured.game} why={featured.why} teams={teams} />}
       {shootout && <PickCard tag="Shootout of the Week" game={shootout.game} teams={teams} />}
+      {upsetPick && <UpsetCard game={upsetPick.game} odds={upsetPick.pick.odds} teams={teams} />}
 
       {!searching && favorites.length > 0 && myGames.length > 0 && filter === "all" && (
         <section id="my-teams">

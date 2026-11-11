@@ -1,7 +1,7 @@
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import PickCard from "@/components/PickCard";
-import ShootoutNote from "@/components/matchup/ShootoutNote";
+import PickNote from "@/components/matchup/PickNote";
 import ScoreRow from "@/components/ScoreRow";
 import { pickFor, pickWhyFor } from "./gotw";
 import type { GameSummary } from "./types";
@@ -62,7 +62,7 @@ describe("Shootout reason on the game page", () => {
     expect(pickWhyFor({}, 401856856)).toBeNull();
   });
   it("note shows the tag and the reason", () => {
-    const h = html(<ShootoutNote why={why} />);
+    const h = html(<PickNote tag="Shootout of the Week" why={why} />);
     expect(h).toContain("Shootout of the Week");
     expect(h).toContain(why);
   });
