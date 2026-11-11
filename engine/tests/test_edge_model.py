@@ -203,3 +203,14 @@ def test_held_out_accepts_a_fit_function():
     assert {"season", "game_id", "lin", "score", "favored_won", "scored_before"} <= set(df.columns)
     assert len(df) == len(fr) and df["score"].between(0, 10).all()
     assert df["favored_won"].mean() > 0.6   # Elo tracks strength in this world, so held-out picks beat a coin
+
+
+def test_games_against_non_fbs_teams_do_not_feed_the_stats():
+    tg, games, fbs = _world()
+    fbs[2023] = fbs[2023] - {"T7"}
+    with_rows = frame(tg, games, fbs, k=0.0).set_index("game_id")
+    without = frame(tg[(tg.season != 2023) | ((tg.team != "T7") & (tg.opponent != "T7"))], games, fbs, k=0.0).set_index("game_id")
+    late = [g for g, x in games.items() if x["season"] == 2023 and x["week"] == 7 and "T7" not in (x["homeTeam"], x["awayTeam"])]
+    assert late
+    for gid in late:
+        assert all(with_rows.loc[gid, f"f_{k}"] == pytest.approx(without.loc[gid, f"f_{k}"]) for k in EDGE_KEYS)

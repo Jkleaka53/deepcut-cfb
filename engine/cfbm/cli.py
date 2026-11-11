@@ -178,15 +178,25 @@ def shootout_backtest(client, check_season: int = 2026, check_week: int = 10,
 
 
 def upset_backtest(client, check_season: int = 2026, check_weeks: tuple[int, ...] = (10, 11)) -> None:
+    """Backtests the model Upset Watch actually uses: the nine-stat swing model (export.upset_picks)."""
     import numpy as np
 
-    from cfbm import edge_model
-    from cfbm.swing_data import MIN_PRIOR
-    from cfbm.upset import book_prob, fit_spread_scale, gap, spread_of
+    from cfbm import config, fetch
+    from cfbm.edge_backtest import held_out
+    from cfbm.export import train_model, training_data
+    from cfbm.plays import game_orders
+    from cfbm.swing_data import apply_orders, pregame_adjusted, team_games
+    from cfbm.upset import book_prob, fit_spread_scale, gap, our_prob, spread_of
     from cfbm.upset_backtest import covered, join, summary, weekly_picks
 
-    held, fr = _edge_held(client)
-    games, lines, _ = _history(client)
+    data = training_data(client, config.TRAIN_SEASONS)
+    if data is None:
+        sys.exit("Not enough training games.")
+    held = held_out(*data)
+    games, lines = {}, {}
+    for y in config.TRAIN_SEASONS:
+        games.update({g["id"]: g for g in fetch.games(client, y, False)})
+        lines.update({ln["id"]: ln for ln in fetch.lines(client, y, False)})
     sp, hw = [], []
     for gid, ln in lines.items():
         g, s_ = games.get(gid), spread_of(ln)
@@ -195,14 +205,12 @@ def upset_backtest(client, check_season: int = 2026, check_weeks: tuple[int, ...
             sp.append(s_)
             hw.append(int(g["homePoints"] > g["awayPoints"]))
     k = fit_spread_scale(np.array(sp), np.array(hw))
-    # Judged on the games Upset Watch can pick: both teams with MIN_PRIOR games. All games shown for reference.
-    df = join(held[held["scored_before"]], lines, games, k)
+    df = join(held, lines, games, k)
     picks = weekly_picks(df)
-    print(f"spread scale k={k}  games with model+spread {len(df)} (both teams {MIN_PRIOR}+ games)")
+    print(f"spread scale k={k}  games with model+spread {len(df)}")
     print("ALL", summary(picks))
     for s_, p in picks.groupby("season"):
         print(s_, summary(p))
-    print("reference, every week incl. early games:", summary(weekly_picks(join(held, lines, games, k))))
     dogs = []
     for r in df.itertuples():
         bh = r.book_home
@@ -210,34 +218,38 @@ def upset_backtest(client, check_season: int = 2026, check_weeks: tuple[int, ...
         if dog:
             dogs.append(covered(dog, r.spread, r.home_margin))
     print(f"control: all <=45% underdogs n={len(dogs)} cover={np.mean(dogs):.3f}")
-    for lo, hi in ((0, 3.5), (3.5, 7.5), (7.5, 14.5), (14.5, 99)):
-        rows = []
-        for r in df[(df["spread"].abs() > lo) & (df["spread"].abs() <= hi)].itertuples():
-            gp = gap(r.our_home, r.book_home)
-            if gp and gp[1] > 0.10:
-                won = r.home_margin > 0 if gp[0] == "home" else r.home_margin < 0
-                rows.append((covered(gp[0], r.spread, r.home_margin), won, r.book_home if gp[0] == "home" else 1 - r.book_home))
-        if rows:
-            a = np.array(rows, float)
-            print(f"  spread {lo}-{hi}, gap>0.10: n={len(a)} cover={a[:, 0].mean():.3f} won={a[:, 1].mean():.3f} book={a[:, 2].mean():.3f}")
+    # Reference only: the edge model (Elo + margin) on the same rule. It failed the cover bar on 2026-11-10,
+    # which is why Upset Watch stays on the nine-stat model above.
+    eheld, _ = _edge_held(client)
+    print("reference, edge model (not used by Upset Watch), both teams 3+ games:",
+          summary(weekly_picks(join(eheld[eheld["scored_before"]], lines, games, k))))
 
-    live, _, g26, _ = _season_scores(client, edge_model.train(fr), check_season)
-    from cfbm import fetch
+    model = train_model(client, config.TRAIN_SEASONS)
+    g26 = {g["id"]: g for g in fetch.games(client, check_season, False)}
     l26 = {ln["id"]: ln for ln in fetch.lines(client, check_season, False)}
-    live = live[live["scored_before"]].set_index("game_id")
+    fbs = fetch.fbs_teams(client, check_season)
+    orders = game_orders(list(g26.values()))
+    tg = apply_orders(team_games(fetch.game_advanced(client, check_season, False)), orders)
+    tg = tg[tg["team"].isin(fbs) & tg["opponent"].isin(fbs)]
     for wk in check_weeks:
         cands = []
-        for gid, r in live.iterrows():
-            g = g26[gid]
-            if g.get("week") != wk or g["seasonType"] != "regular":
+        for g in g26.values():
+            if g.get("week") != wk or g["seasonType"] != "regular" or g["homeTeam"] not in fbs or g["awayTeam"] not in fbs:
                 continue
-            bh = book_prob(l26.get(gid, {}))
-            gp = None if bh is None else gap(1 / (1 + np.exp(-r["lin"])), bh)
+            bh = book_prob(l26.get(g["id"], {}))
+            if bh is None:
+                continue
+            pre = pregame_adjusted(tg, check_season, orders.get(g["id"], 0), w=config.OPP_ADJUST)
+            if (pre.reindex([g["homeTeam"], g["awayTeam"]])["games"] < 3).any():
+                continue
+            oh = our_prob(model, pre, g["homeTeam"], g["awayTeam"], bool(g.get("neutralSite")))
+            gp = None if oh is None else gap(oh, bh)
             if gp:
                 cands.append((gp[1], gp[0], g, bh))
-        print(f"{check_season} wk {wk} (finished games only): {len(cands)} candidates; top 3:")
+        print(f"{check_season} wk {wk}: {len(cands)} candidates; top 3:")
         for gv, dog, g, bh in sorted(cands, key=lambda c: -c[0])[:3]:
-            print(f"   {g['awayTeam']} at {g['homeTeam']}  dog={dog}  DK home {round(100*bh)}%  gap {gv:.2f}  {g['awayPoints']}-{g['homePoints']}")
+            res = f"{g['awayPoints']}-{g['homePoints']}" if g.get("completed") else "not played"
+            print(f"   {g['awayTeam']} at {g['homeTeam']}  dog={dog}  DK home {round(100*bh)}%  gap {gv:.2f}  {res}")
 
 
 def main(argv: list[str] | None = None) -> None:

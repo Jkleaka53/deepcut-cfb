@@ -1,6 +1,8 @@
 """The edge score's model: the nine pregame matchup stats plus prior team strength (pregame Elo) and
 scoring margin to date. Every FBS-vs-FBS game is scored, week 1 included: a team's season-to-date numbers
-are pulled toward the league average while its sample is thin, so early games lean on Elo and home field.
+are measured from the league average and a team that has not played sits at the average, so early games
+lean on Elo and home field. (shrunk_pregame can also pull thin samples toward the average, but the held-out
+check picked no shrinking: config.EDGE_SHRINK_K = 0.)
 Internal only: nothing here is published (the swing-factor card keeps its own nine-stat fit)."""
 
 from __future__ import annotations

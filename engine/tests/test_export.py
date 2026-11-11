@@ -624,3 +624,60 @@ def test_upset_exports_only_draftkings_odds(tmp_path, monkeypatch):
 def test_upset_file_empty_without_lines(tmp_path):
     out = _model_build(tmp_path)
     assert _load(out / "2025" / "upset.json") == {}
+
+
+# --- the live edge inputs must be the training inputs (review 2026-11-10) -----------------------------------
+def test_live_edge_inputs_equal_training_inputs_for_every_decided_game():
+    """export._edge_feats is what the site scores; edge_model.frame is what the model learned from.
+    Same game, same numbers, or live scores drift silently."""
+    from cfbm import edge_model, fetch
+    from cfbm.export import _Data, _edge_feats
+    from cfbm.swing_data import team_games
+
+    client = AdvClient()
+    d = _Data(client, [2025], 2025)
+    games = {g["id"]: g for g in client.games}
+    fr = edge_model.frame(team_games(fetch.game_advanced(client, 2025, False)), games, {2025: set(FBS)}).set_index("game_id")
+    assert set(fr.index) == {1, 3, 4, 5, 8}      # decided FBS-vs-FBS games with Elo (2 has none, 6 is vs FCS)
+    for gid, row in fr.iterrows():
+        live = _edge_feats(d, games[gid], d.orders[gid])
+        assert {k: pytest.approx(v) for k, v in live.items()} == {k: row[f"f_{k}"] for k in edge_model.EDGE_KEYS}, gid
+    assert any(fr.loc[8, f"f_{k}"] != 0 for k in ("pass_ppa", "margin"))   # the bowl has real stats and margin behind it
+
+
+class _Tweaked(AdvClient):
+    """AdvClient with one game's result and stats blown up, and optionally one game's site flipped."""
+
+    def __init__(self, blow_up=None, flip_neutral=None):
+        super().__init__()
+        self.blow_up = blow_up
+        for g in self.games:
+            if g["id"] == blow_up:
+                g["homePoints"], g["awayPoints"] = 70, 0
+            if g["id"] == flip_neutral:
+                g["neutralSite"] = not g["neutralSite"]
+
+    def get(self, path, params, *, cacheable=True):
+        out = super().get(path, params, cacheable=cacheable)
+        if path == "/stats/game/advanced":
+            for r in out:
+                if r["gameId"] == self.blow_up:
+                    r["offense"]["passingPlays"]["ppa"] += 5.0
+        return out
+
+
+def _edges(tmp_path, client):
+    out = _model_build(tmp_path, client)
+    return {int(f.stem): _load(f)["swing"]["overallEdge"] for f in (out / "2025" / "matchups").glob("*.json")}
+
+
+def test_a_game_never_feeds_its_own_edge_score(tmp_path):
+    base, blown = _edges(tmp_path / "a", AdvClient()), _edges(tmp_path / "b", _Tweaked(blow_up=4))
+    assert base[4] == blown[4]          # week 2, A hosts C: its own 70-0 and stats are not in its preview
+    assert base[1] == blown[1]          # earlier games are untouched
+    assert base[9] != blown[9]          # the bowl with A in it: the blowout now counts in A's numbers
+
+
+def test_neutral_site_drops_home_field_from_the_edge(tmp_path):
+    base, flipped = _edges(tmp_path / "a", AdvClient()), _edges(tmp_path / "b", _Tweaked(flip_neutral=8))
+    assert base[8] != flipped[8] and base[4] == flipped[4]

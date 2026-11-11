@@ -2,7 +2,7 @@
 
 Score = 0.5 x strength + 0.5 x closeness (both 0-100).
   strength  = mean national percentile of every passing AND running row, both offenses and both defenses
-  closeness = 100 - 10 x the overall edge score (0-10); before the edge score exists (early season),
+  closeness = 100 - 10 x the overall edge score (0-10); for a game with no edge score (no Elo rating),
               100 - mean absolute offense-minus-defense gap across both passing matchups
 Rankings never enter the score; they decide eligibility: games with BOTH teams in the AP Top 25 first,
 then games with one, then any game (see pick).
