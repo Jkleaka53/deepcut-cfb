@@ -621,6 +621,29 @@ def test_upset_exports_only_draftkings_odds(tmp_path, monkeypatch):
             assert not any(bad in k.lower() for bad in ("prob", "moneyline", "spread", "odds")), k
 
 
+def test_upset_game_shows_the_upset_models_edge(tmp_path, monkeypatch):
+    """The picked game's edge score (game page and home row) comes from the model that made the pick; every
+    other game keeps the edge model's score (owner 2026-11-11)."""
+    import cfbm.swing
+    import cfbm.upset
+    monkeypatch.setattr(cfbm.swing, "MIN_PRIOR", 1)
+    monkeypatch.setattr(cfbm.upset, "own_edge",
+                        lambda model, pre, home, away, neutral: {"edge": "slight", "team": None, "score": 7.77})
+    monkeypatch.setattr(cfbm.upset, "backs_dog", lambda m, dog: True)
+    out = _model_build(tmp_path, LinesClient())
+    picked = {p["id"] for p in _load(out / "2025" / "upset.json").values()}
+    assert picked
+    for g in _load(out / "2025" / "games.json"):
+        f = out / "2025" / "matchups" / f"{g['id']}.json"
+        if not f.exists():
+            continue
+        m = _load(f)
+        e = (m.get("swing") or {}).get("overallEdge") or {}
+        assert (e.get("score") == 7.77) == (g["id"] in picked), g["id"]
+        assert ((g["edge"] or {}).get("score") == 7.77) == (g["id"] in picked), g["id"]
+        assert m["game"]["edge"] == g["edge"]
+
+
 def test_upset_file_empty_without_lines(tmp_path):
     out = _model_build(tmp_path)
     assert _load(out / "2025" / "upset.json") == {}

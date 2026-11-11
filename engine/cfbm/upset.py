@@ -67,6 +67,20 @@ def our_prob(model: dict, pre, home: str, away: str, neutral: bool) -> float | N
     return None if lin is None else 1 / (1 + math.exp(-lin))
 
 
+def own_edge(model: dict, pre, home: str, away: str, neutral: bool) -> dict | None:
+    """The game's edge (band, team, 0-10 score) on the nine-stat model that makes the Upset Watch pick, in the
+    shape edge_score.edge returns. The picked game shows this one, so the pick and the score next to it come
+    from the same model (owner 2026-11-11). None when the game cannot be scored."""
+    from cfbm.edge_score import band, overall_linear, to_score
+
+    lin = overall_linear(model, pre, home, away, neutral)
+    if lin is None:
+        return None
+    score = to_score(lin, model["scale"]["overall"])
+    b = band(score)
+    return {"edge": b, "team": None if b == "even" else (home if lin > 0 else away), "score": score}
+
+
 def gap(our_home: float, book_home: float) -> tuple[str, float] | None:
     """The book's underdog ("home"/"away") and how much more we like it, when the book gives it at most
     DOG_MAX and we give it more than the book does."""
@@ -118,8 +132,8 @@ def why_text(m: dict, dog: str, fav: str) -> str:
         parts.append("Our edge score has it even.")
     elif e["team"] == dog:
         parts.append(f"Our edge score leans {dog}, {e['score']} of 10.")
-    # When the edge score favors the favorite, say nothing about it: the pick comes from the upset model
-    # (nine stats), the edge score from the edge model, and the two can disagree (owner 2026-11-10).
+    # When the edge score favors the favorite, say nothing about it: the underdog can be more likely than the
+    # book says and still not be favored, and the line should not argue against its own pick (owner 2026-11-10).
     return " ".join(parts)
 
 

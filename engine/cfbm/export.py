@@ -308,11 +308,14 @@ def shootout_picks(d: _Data, built: list[dict], model: dict, gotw: dict) -> tupl
 
 
 def upset_picks(d: _Data, built: list[dict], model: dict, lines: dict[int, dict], gotw: dict,
-                shoot: dict) -> dict:
-    """Upset Watch: DraftKings' underdog that our (internal) chance likes most, per week."""
+                shoot: dict) -> tuple[dict, dict[int, dict]]:
+    """Upset Watch: DraftKings' underdog that our (internal) chance likes most, per week. Returns (picks by
+    week, {picked game id: that game's edge on the upset model}). The picked game shows the upset model's
+    edge score, so the pick and the score next to it agree (owner 2026-11-11)."""
     if not model or not lines:
-        return {}
+        return {}, {}
     cands = []
+    edges: dict[int, dict] = {}
     for m in built:
         sw = m.get("swing") or {}
         g = d.game_by_id.get(m["game"]["id"])
@@ -334,14 +337,25 @@ def upset_picks(d: _Data, built: list[dict], model: dict, lines: dict[int, dict]
         if gp is None:
             continue
         dog, fav = (home, away) if gp[0] == "home" else (away, home)
-        if not upset.backs_dog(m, dog):
+        own = upset.own_edge(model, pre, home, away, bool(g.get("neutralSite")))
+        if own is None:
             continue
-        cands.append((g, gp[1], {"why": upset.why_text(m, dog, fav), "odds": upset.odds_block(bh)}))
+        view = {**m, "swing": {**sw, "overallEdge": own}}  # the reason is judged on the upset model's edge too
+        if not upset.backs_dog(view, dog):
+            continue
+        edges[int(g["id"])] = own
+        cands.append((g, gp[1], {"why": upset.why_text(view, dog, fav), "odds": upset.odds_block(bh)}))
     skip: dict[str, set[int]] = {}
     for picks in (gotw, shoot):
         for wk, p in picks.items():
             skip.setdefault(wk, set()).add(int(p["id"]))
-    return upset.pick(cands, skip)
+    picks = upset.pick(cands, skip)
+    return picks, {p["id"]: edges[p["id"]] for p in picks.values()}
+
+
+def _edge_summary(o: dict | None) -> dict | None:
+    """The edge as games.json carries it: nothing for an even game."""
+    return {"band": o["edge"], "team": o["team"], "score": o["score"]} if o and o["edge"] != "even" else None
 
 
 def train_shootout(client, seasons) -> dict | None:
@@ -541,19 +555,28 @@ def build(client, out_dir: Path, seasons=config.DISPLAY_SEASONS, now: datetime |
                 m["venue"] = venue_block(d.venues.get(g.get("venueId")))
                 summ["gap"] = m["game"]["gap"] = summary_gap(m)
                 o = (m["swing"] or {}).get("overallEdge") if m.get("swing") else None
-                summ["edge"] = m["game"]["edge"] = (
-                    {"band": o["edge"], "team": o["team"], "score": o["score"]} if o and o["edge"] != "even" else None)
+                summ["edge"] = m["game"]["edge"] = _edge_summary(o)
                 _write(out_dir / str(s) / "matchups" / f"{g['id']}.json", m)
                 built.append(m)
         gotw = pick_gotw(built)
         shoot, watch = shootout_picks(d, built, shootout_model, gotw)
         for summ in summaries:
             summ["shootoutWatch"] = summ["id"] in watch
-        _write(out_dir / str(s) / "games.json", summaries)
         _write(out_dir / str(s) / "gotw.json", gotw)
         _write(out_dir / str(s) / "shootout.json", shoot)
         lines = {ln["id"]: ln for ln in fetch.lines(client, s, s == live)}
-        _write(out_dir / str(s) / "upset.json", upset_picks(d, built, model, lines, gotw, shoot))
+        upsets, upset_edges = upset_picks(d, built, model, lines, gotw, shoot)
+        # The Upset Watch game shows the upset model's edge, on its page and its home row. Done after Game of
+        # the Week and the Shootout are picked, so those still read the edge model for every game.
+        by_id = {summ["id"]: summ for summ in summaries}
+        for m in built:
+            own = upset_edges.get(m["game"]["id"])
+            if own is not None:
+                m["swing"]["overallEdge"] = own
+                by_id[m["game"]["id"]]["edge"] = m["game"]["edge"] = _edge_summary(own)
+                _write(out_dir / str(s) / "matchups" / f"{m['game']['id']}.json", m)
+        _write(out_dir / str(s) / "games.json", summaries)
+        _write(out_dir / str(s) / "upset.json", upsets)
 
     week, st = _current(d.games[live], now) if d.games[live] else (1, "regular")
     _write(out_dir / "index.json", {

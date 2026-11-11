@@ -147,3 +147,25 @@ def test_reason_must_back_the_underdog():
     assert not backs_dog(fav_only, "Iowa State")
     assert backs_dog(_m([], {"edge": "even", "team": None, "score": 1.0}), "Iowa State")
     assert backs_dog(_m([EXPL], {"edge": "slight", "team": "Kansas State", "score": 2.5}), "Iowa State")
+
+
+def test_own_edge_scores_the_game_on_the_upset_model():
+    """The Upset Watch game's edge score comes from the model that made the pick (owner 2026-11-11)."""
+    import pandas as pd
+    from cfbm.edge_score import overall_linear, to_score
+    from cfbm.swing_data import KEYS
+    from cfbm.upset import own_edge
+
+    k = KEYS[0]
+    model = {"intercept": 0.0, "home": {"coef": 0.0}, "features": {k: {"coef": 1.0, "mean": 0.0, "sd": 1.0}},
+             "scale": {"overall": [0.0, 1.0, 2.0]}}
+    cols = {f"{side}_{key}": 0.0 for key in KEYS for side in ("off", "def")}
+    pre = pd.DataFrame([{**cols, f"off_{k}": 0.5}, dict(cols)], index=["Dog", "Fav"])
+    lin = overall_linear(model, pre, "Dog", "Fav", True)
+    assert lin
+    e = own_edge(model, pre, "Dog", "Fav", True)
+    assert e["score"] == to_score(lin, model["scale"]["overall"])
+    assert e["edge"] in ("slight", "clear") and e["team"] == ("Dog" if lin > 0 else "Fav")
+    flat = own_edge(model, pd.DataFrame([dict(cols), dict(cols)], index=["Dog", "Fav"]), "Dog", "Fav", True)
+    assert flat == {"edge": "even", "team": None, "score": 0.0}
+    assert own_edge(model, pre, "Dog", "Nobody", True) is None
