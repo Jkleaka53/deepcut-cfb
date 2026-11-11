@@ -56,3 +56,10 @@ Each team's season-to-date stat is adjusted for its opponents, as of kickoff onl
 w chosen by model log loss alone (0.8), not by the upset numbers. Every w from 0.4 to 1.0 passes both bars. At 0.8 the planned weekly pick PASSES: covered 52.7% (> 50%), won outright 31.0% vs book 25.9%.
 
 Adopting it changes the swing model, so it moves the live edge scores, swing factors and Game of the Week closeness as well; the Even/Big cutoffs would be re-run.
+
+## Adopted (owner: site-wide, 2026-11-10)
+
+Real code (config.OPP_ADJUST = 0.8) reproduces the experiment: weekly pick covered 52.7%, won outright 31.0% vs book 25.9% (129 weeks). PASS.
+2026 wk 11 pick: Michigan at Oregon (DraftKings: Michigan 22%).
+
+Edge label lines re-checked on the adjusted model: the backtest suggests Even < 2.5 / Big >= 6.5 (Big 85.3% over 2015-2025), but on 2026's 283 finished games Big at 6.5 was right 100/128 (78%) vs 55/65 (85%) at 8.0. Owner kept 2.0 / 8.0. With 2/8, 2026 labels move little (Even 105 to 115, Slight 331 to 318, Big 101 to 104; favored team flipped in 2 of 537).

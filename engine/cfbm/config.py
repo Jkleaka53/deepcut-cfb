@@ -61,3 +61,4 @@ AVAILABILITY_REPORTS = {
 # before kickoff. 0.8 had the best held-out log loss (0.5626 vs 0.5764 raw) over 2015-2025; see
 # docs/superpowers/plans/2026-11-10-upset-report.md.
 OPP_ADJUST = 0.8
+# Re-checked on the adjusted model 2026-11-10: owner kept EDGE_SCORE_SLIGHT 2.0 / EDGE_SCORE_BIG 8.0 (Big 85% on 2026).
