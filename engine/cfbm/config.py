@@ -62,3 +62,8 @@ AVAILABILITY_REPORTS = {
 # docs/superpowers/plans/2026-11-10-upset-report.md.
 OPP_ADJUST = 0.8
 # Re-checked on the adjusted model 2026-11-10: owner kept EDGE_SCORE_SLIGHT 2.0 / EDGE_SCORE_BIG 8.0 (Big 85% on 2026).
+
+# Edge model (2026-11-10): scoring margin per game is capped at this many points either way, and a team's
+# season-to-date numbers are pulled toward the league average by n / (n + EDGE_SHRINK_K) (n = its games so far).
+EDGE_MARGIN_CAP = 28
+EDGE_SHRINK_K = 2.0  # provisional until the held-out check in edge-audit confirms it
