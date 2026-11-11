@@ -22,7 +22,8 @@ def team_margins(games: list[dict], fbs_by_season: dict[int, set[str]], orders: 
         s, h, a = g.get("season"), g.get("homeTeam"), g.get("awayTeam")
         hp, ap = g.get("homePoints"), g.get("awayPoints")
         fbs = fbs_by_season.get(s, set())
-        if hp is None or ap is None or h not in fbs or a not in fbs or g["id"] not in orders:
+        if hp is None or ap is None or h not in fbs or a not in fbs or g["id"] not in orders \
+                or g.get("completed") is False:  # a game in progress has points but no result yet
             continue
         m = float(np.clip(hp - ap, -cap, cap))
         rows.append({"game_id": g["id"], "season": s, "team": h, "order": orders[g["id"]], "margin": m})

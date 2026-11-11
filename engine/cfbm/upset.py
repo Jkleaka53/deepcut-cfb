@@ -1,6 +1,7 @@
 """Upset Watch: the game where the pros are most likely wrong. DraftKings' odds (margin removed) give the
-pros' win chance; our internal pregame chance comes from the edge score's linear model and NEVER leaves the
-engine. Only DraftKings' own whole-number percentages are published."""
+pros' win chance; our internal pregame chance comes from the nine-stat swing model (edge_score.overall_linear,
+not the edge model: Upset Watch failed its backtest on that one, owner 2026-11-10) and NEVER leaves the
+engine. The why-line quotes the edge score the site shows. Only DraftKings' own whole-number percentages are published."""
 
 from __future__ import annotations
 
@@ -59,7 +60,7 @@ DOG_MAX = 0.45
 
 
 def our_prob(model: dict, pre, home: str, away: str, neutral: bool) -> float | None:
-    """Our pregame home win chance from the edge score's linear model. Internal only, never exported."""
+    """Our pregame home win chance from the nine-stat swing model. Internal only, never exported."""
     from cfbm.edge_score import overall_linear
 
     lin = overall_linear(model, pre, home, away, neutral)

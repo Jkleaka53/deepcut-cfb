@@ -6,7 +6,6 @@ from __future__ import annotations
 import pandas as pd
 
 from cfbm.swing_data import DIRECTION, FEATURES, MIN_PRIOR, side_advantage
-from cfbm.edge_score import overall_edge
 from cfbm.units import edge
 
 LABEL = {k: label for k, _, _, label in FEATURES}
@@ -73,14 +72,15 @@ def _pct_rank(series: pd.Series, team: str, direction: int) -> tuple[int, float]
 
 
 def swing_block(model: dict, home: str, away: str, pre: pd.DataFrame, neutral: bool,
-                raw: pd.DataFrame | None = None) -> dict:
+                raw: pd.DataFrame | None = None, overall: dict | None = None) -> dict:
     """pre = what the model reads (opponent-adjusted at build time); raw = real season stats, used for the
-    ranks, the favored team and the numbers shown in the pulldown (defaults to pre)."""
+    ranks, the favored team and the numbers shown in the pulldown (defaults to pre). overall = the game's
+    edge score, worked out by the edge model (edge_score.edge) and only carried here."""
     raw = pre if raw is None else raw
     feats = model["features"]
     short = [t for t in (away, home) if t not in pre.index or pre.loc[t, "games"] < MIN_PRIOR]
     if short:
-        return {"drivers": [], "overallEdge": None, "keyRows": {home: [], away: []},
+        return {"drivers": [], "overallEdge": overall, "keyRows": {home: [], away: []},
                 "note": f"Too early in the season: {' and '.join(short)} {'has' if len(short) == 1 else 'have'} "
                         f"fewer than {MIN_PRIOR} games against FBS teams."}
     n = len(raw)
@@ -113,7 +113,6 @@ def swing_block(model: dict, home: str, away: str, pre: pd.DataFrame, neutral: b
                                          n=n_proven, since=since, pct=round(100 * f.get("matchupWinRate", 0.5)))},
                           "score": round(f["importance"] * abs(z) * f["volatility"], 4)})
     drivers = sorted(cands, key=lambda c: -c["score"])[:MAX_DRIVERS]
-    overall = overall_edge(model, pre, home, away, neutral)
     key_rows = {home: [], away: []}
     for dr in drivers:
         if dr["key"] in KEY_ROW and KEY_ROW[dr["key"]] not in key_rows[dr["offense"]]:

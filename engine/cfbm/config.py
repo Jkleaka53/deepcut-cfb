@@ -70,3 +70,5 @@ EDGE_MARGIN_CAP = 28
 # all-games log loss: k=0 0.5404, k=1 0.5405, k=2 0.5407, k=3 0.5410, k=5 0.5412. No shrinking was best by a hair,
 # so a team's numbers are only centered on the league average; a team with no games sits at the average.
 EDGE_SHRINK_K = 0.0
+# Edge labels re-checked on the edge model 2026-11-10 (held-out, 7791 games): at 2.0 / 8.0 the favored team won
+# Even 54.0%, Slight 71.8%, Big 91.3% (2026 to date: 50.0% / 73.5% / 89.1%). Owner kept 2.0 / 8.0.

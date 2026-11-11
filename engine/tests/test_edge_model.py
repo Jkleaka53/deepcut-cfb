@@ -28,6 +28,12 @@ def test_margin_skips_non_fbs_opponents_and_unplayed_games():
     assert team_margins(games, FBS, {1: 1, 2: 2}).empty
 
 
+def test_margin_skips_a_game_still_being_played():
+    live = {**_game(1, "A", "B", 14, 0, week=1), "completed": False}
+    assert team_margins([live], FBS, {1: 1}).empty
+    assert len(team_margins([{**live, "completed": True}], FBS, {1: 1})) == 2
+
+
 def test_bowl_game_does_not_see_its_own_margin():
     games = [_game(i, "A", "B", 20, 10, week=i) for i in range(1, 13)]
     games += [_game(101, "A", "C", 50, 0, week=1, st="postseason"), _game(102, "A", "B", 0, 50, week=1, st="postseason")]

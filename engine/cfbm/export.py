@@ -33,7 +33,8 @@ from cfbm.shootout import SHOOT_COLS, SHOOT_FEATURES
 from cfbm.swing import swing_block
 from cfbm.swing_data import pregame, pregame_adjusted, team_games, training_frame
 from cfbm.swing_model import train
-from cfbm import edge_model
+from cfbm import edge_model, edge_score
+from cfbm import swing as swing_mod
 
 
 def to_json_safe(obj):
@@ -136,6 +137,8 @@ class _Data:
         self._asof: dict = {}
         self._adv_fbs: dict[int, pd.DataFrame] = {}
         self._pre_adj: dict[tuple[int, int], pd.DataFrame] = {}
+        self._margins: dict[int, pd.DataFrame] = {}
+        self._edge_pre: dict[tuple[int, int], pd.DataFrame] = {}
         self.polls: dict[int, list[dict]] = {}
 
     def adv_fbs(self, season: int) -> pd.DataFrame:
@@ -262,6 +265,19 @@ def _pregame(d: _Data, g: dict, order: int) -> pd.DataFrame:
     return d._pre_adj[key]
 
 
+def _edge_feats(d: _Data, g: dict, order: int) -> dict | None:
+    """The edge model's inputs for one game, built the way edge_model.frame builds them for training."""
+    s = g["season"]
+    key = (s, order)
+    if key not in d._edge_pre:
+        if s not in d._margins:
+            d._margins[s] = edge_model.team_margins(d.games[s], d.fbs, d.orders)
+        d._edge_pre[key] = edge_model.shrunk_pregame(_pregame(d, g, order), edge_model.margin_before(d._margins[s], s, order),
+                                                     config.EDGE_SHRINK_K)
+    return edge_model.features(d._edge_pre[key], g["homeTeam"], g["awayTeam"], g.get("homePregameElo"),
+                               g.get("awayPregameElo"))
+
+
 def _pregame_raw(d: _Data, g: dict, order: int) -> pd.DataFrame:
     """Real season-to-date stats: what the swing pulldowns show."""
     s = g["season"]
@@ -307,7 +323,13 @@ def upset_picks(d: _Data, built: list[dict], model: dict, lines: dict[int, dict]
             continue
         order = d.orders.get(g["id"], order_key(g["seasonType"], g["week"]))
         home, away = g["homeTeam"], g["awayTeam"]
-        oh = upset.our_prob(model, _pregame(d, g, order), home, away, bool(g.get("neutralSite")))
+        pre = _pregame(d, g, order)
+        # Every game has an edge score now, so the sample check is explicit: the pick's why-line needs swing
+        # factors, which need MIN_PRIOR games per team.
+        if (pre["games"].reindex([home, away]).fillna(0) < swing_mod.MIN_PRIOR).any():
+            continue
+        # Upset Watch still reads the nine-stat model (owner 2026-11-10: it failed its backtest on the edge model).
+        oh = upset.our_prob(model, pre, home, away, bool(g.get("neutralSite")))
         gp = None if oh is None else upset.gap(oh, bh)
         if gp is None:
             continue
@@ -327,9 +349,10 @@ def train_shootout(client, seasons) -> dict | None:
     return shootout.fit(rows) if len(rows) else None
 
 
-def _swing(d: _Data, g: dict, order: int, qbs: dict, model: dict, pre: pd.DataFrame) -> dict:
+def _swing(d: _Data, g: dict, order: int, qbs: dict, model: dict, pre: pd.DataFrame,
+           overall: dict | None = None) -> dict:
     s, home, away = g["season"], g["homeTeam"], g["awayTeam"]
-    sw = swing_block(model, home, away, pre, bool(g.get("neutralSite")), raw=_pregame_raw(d, g, order))
+    sw = swing_block(model, home, away, pre, bool(g.get("neutralSite")), raw=_pregame_raw(d, g, order), overall=overall)
     facts, prev = {}, {}
     for t in (away, home):
         q = qbs.get(t)
@@ -348,7 +371,8 @@ def _swing(d: _Data, g: dict, order: int, qbs: dict, model: dict, pre: pd.DataFr
     return sw
 
 
-def matchup(d: _Data, g: dict, model: dict | None = None) -> dict:
+def matchup(d: _Data, g: dict, model: dict | None = None, edge_mdl: dict | None = None) -> dict:
+    """model = the nine-stat swing model (swing-factor card); edge_mdl = the edge model (0-10 score)."""
     s, st, wk = g["season"], g["seasonType"], g["week"]
     order = d.orders.get(g["id"], order_key(st, wk))
     prof, ranked, early = d.as_of(s, st, wk, order)
@@ -371,7 +395,9 @@ def matchup(d: _Data, g: dict, model: dict | None = None) -> dict:
         sec["runEdge"] = side_edge(run_rows)
         sec["runBiggestGap"] = biggest_gap(run_rows)
         sections.append(sec)
-    swing = _swing(d, g, order, qbs, model, pre) if model else None
+    overall = edge_score.edge(edge_mdl, _edge_feats(d, g, order), home, away, bool(g.get("neutralSite"))) \
+        if edge_mdl else None
+    swing = _swing(d, g, order, qbs, model, pre, overall) if model else None
     key_rows = (swing or {}).pop("keyRows", {}) if swing else {}
     for sec in sections:
         for u in sec["units"] + sec["runUnits"]:
@@ -467,7 +493,8 @@ def venue_block(v: dict | None) -> dict | None:
 
 def build(client, out_dir: Path, seasons=config.DISPLAY_SEASONS, now: datetime | None = None,
           career_start: int = config.CAREER_START_SEASON, weather_fetch=None, model: dict | None = None,
-          train_seasons=config.TRAIN_SEASONS, shootout_model: dict | None = None) -> None:
+          train_seasons=config.TRAIN_SEASONS, shootout_model: dict | None = None,
+          edge_model: dict | None = None) -> None:
     out_dir = Path(out_dir)
     live = max(seasons)
     seasons_all = list(range(min(career_start, min(seasons)), live + 1))
@@ -476,6 +503,7 @@ def build(client, out_dir: Path, seasons=config.DISPLAY_SEASONS, now: datetime |
         model = train_model(client, train_seasons)
     if shootout_model is None:
         shootout_model = train_shootout(client, train_seasons)
+    edge_mdl = edge_model if edge_model is not None else train_edge_model(client, train_seasons)
     now = now or datetime.now(timezone.utc)
     fetch_json = weather_fetch or http_fetch
     calls: dict = {}
@@ -505,7 +533,7 @@ def build(client, out_dir: Path, seasons=config.DISPLAY_SEASONS, now: datetime |
         built = []
         for g, summ in zip(d.games[s], summaries):
             if summ["hasBreakdown"]:
-                m = matchup(d, g, model)
+                m = matchup(d, g, model, edge_mdl)
                 top = (m["swing"] or {}).get("drivers") or [] if m.get("swing") else []
                 summ["keyFactor"] = m["game"]["keyFactor"] = (
                     {"label": top[0]["label"], "favors": top[0]["favors"]} if top else None)

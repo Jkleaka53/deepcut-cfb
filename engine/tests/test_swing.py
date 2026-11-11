@@ -1,6 +1,5 @@
 import pandas as pd
 
-from cfbm.edge_score import overall_edge
 from cfbm.swing import swing_block
 from cfbm.swing_data import KEYS
 
@@ -57,10 +56,31 @@ def test_early_season_side_skipped_with_note():
     assert out["overallEdge"] is None
 
 
-def test_overall_edge_favors_the_better_team():
+EDGE = {"edge": "slight", "team": "Oregon", "score": 4.2}
+
+
+def test_too_early_block_still_carries_the_edge_score():
+    """Weeks 1 to 4: the edge model scores the game on prior strength, the swing card still waits for 3 games."""
+    p = pre(Oregon=(2, {"pass_ppa": (0.5, 0.0)}), Michigan=(8, {"pass_ppa": (0.5, 0.3)}))
+    out = swing_block(MODEL, "Oregon", "Michigan", p, neutral=False, overall=EDGE)
+    assert out["drivers"] == [] and "fewer than 3 games" in out["note"] and out["overallEdge"] == EDGE
+
+
+def test_overall_edge_is_passed_through_not_computed():
     p = pre(Oregon=(8, {k: (0.4, -0.3) for k in KEYS}), Michigan=(8, {k: (-0.3, 0.4) for k in KEYS}))
-    e = swing_block(MODEL, "Oregon", "Michigan", p, neutral=False)["overallEdge"]
-    assert e["team"] == "Oregon" and e["edge"] in ("slight", "clear")
+    assert swing_block(MODEL, "Oregon", "Michigan", p, neutral=False, overall=EDGE)["overallEdge"] == EDGE
+    assert swing_block(MODEL, "Oregon", "Michigan", p, neutral=False)["overallEdge"] is None
+
+
+def test_swing_card_is_unchanged_by_the_edge_model():
+    """Pinned from main before the edge model existed: drivers, ranks and key rows come from the nine-stat fit."""
+    import json
+    from pathlib import Path
+    before = json.loads((Path(__file__).parent / "fixtures" / "swing_block_pin.json").read_text())
+    p = pre(Oregon=(8, {"pass_ppa": (0.30, -0.10), "sd_sr": (0.10, -0.05), "explosive": (0.2, 0.0)}),
+            Michigan=(8, {"pass_ppa": (0.0, 0.25), "sd_sr": (0.0, 0.10), "rush_sr": (0.9, 0.9), "pd_sr": (0.3, -0.2)}))
+    after = swing_block(MODEL, "Oregon", "Michigan", p, neutral=False, overall=EDGE)
+    assert after["drivers"] == before["drivers"] and after["keyRows"] == before["keyRows"] and after["note"] == before["note"]
 
 
 def test_key_rows_map_passing_parents():
@@ -106,12 +126,6 @@ def test_key_rows_map_run_parents():
     for k in keys & set(want):
         assert want[k] in out["keyRows"]["Oregon"]
 
-
-def test_overall_edge_has_score():
-    p = pre(Oregon=(8, {k: (0.4, -0.3) for k in KEYS}), Michigan=(8, {k: (-0.3, 0.4) for k in KEYS}))
-    e = swing_block(MODEL, "Oregon", "Michigan", p, neutral=False)["overallEdge"]
-    assert 0 <= e["score"] <= 10 and e["edge"] in ("even", "slight", "clear")
-    assert set(e) == {"edge", "team", "score"}
 
 
 DRIVER_PRE = dict(Oregon=(8, {"pass_ppa": (0.30, -0.10), "sd_sr": (0.10, -0.05)}),
@@ -193,4 +207,3 @@ def test_model_uses_adjusted_display_uses_real_stats():
     pass_r = next(d for d in r["drivers"] if d["key"] == "pass_ppa" and d["offense"] == "Oregon")
     assert pass_a["detail"]["offValue"] == 0.3 and pass_a["offRank"] == pass_r["offRank"]
     assert pass_a["score"] < pass_r["score"]  # smaller adjusted gap, smaller swing
-    assert a["overallEdge"] == overall_edge(MODEL, adj, "Oregon", "Michigan", False)

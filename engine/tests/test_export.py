@@ -58,7 +58,10 @@ def _world():
     games = [{"id": i, "season": 2025, "week": wk, "seasonType": st, "startDate": f"2025-09-{wk + (20 + i if st == 'postseason' else 0):02d}T19:00:00.000Z",
               "homeTeam": h, "awayTeam": a, "homeConference": "Conf" if h in FBS else None,
               "awayConference": "Conf" if a in FBS else None, "neutralSite": neu, "venue": "Stadium", "venueId": 1, "startTimeTBD": False,
-              "completed": done, "homePoints": 21 if done else None, "awayPoints": 14 if done else None}
+              "completed": done, "homePoints": 21 if done else None, "awayPoints": 14 if done else None,
+              # Pregame Elo on every FBS-vs-FBS game except id 2 (so one game shows what a missing rating does).
+              "homePregameElo": 1500 + 40 * (ord(h[0]) - 65) if i != 2 and h in FBS and a in FBS else None,
+              "awayPregameElo": 1500 + 40 * (ord(a[0]) - 65) if i != 2 and h in FBS and a in FBS else None}
              for i, st, wk, h, a, neu, done in sched]
     return games
 
@@ -363,7 +366,8 @@ def test_matchup_carries_team_records(out):
     assert m["records"]["A"]["wins"] + m["records"]["A"]["losses"] == 2
 
 
-BANNED = {"winprob", "probability", "prob", "logit", "linear", "predictedtotal", "spread", "margin"}
+BANNED = {"winprob", "probability", "prob", "logit", "linear", "predictedtotal", "spread", "margin",
+          "elo", "pregameelo", "homepregameelo", "awaypregameelo", "homepostgameelo", "awaypostgameelo"}
 
 
 def _walk(x):
@@ -403,6 +407,14 @@ SHOOT_HAND = {"means": {k: 0.0 for k in ("x_ppa", "x_sr", "x_expl", "x_pace", "h
               "coef": {"x_ppa": 10.0, "x_sr": 0.0, "x_expl": 0.0, "x_pace": 1.0, "home": 1.0}, "intercept": 20.0}
 
 
+def _edge_model():
+    from cfbm.swing_data import KEYS
+    return {"seasons": [2024], "games": 1000, "intercept": 0.0, "home": {"coef": 0.3},
+            "features": {**{k: {"coef": 0.3, "mean": 0.0, "sd": 1.0} for k in KEYS},
+                         "elo": {"coef": 0.6, "mean": 0.0, "sd": 100.0}, "margin": {"coef": 0.2, "mean": 0.0, "sd": 10.0}},
+            "scale": {"overall": [i / 50 for i in range(101)]}}
+
+
 def _model_build(tmp_path, client=None):
     from cfbm.swing_data import KEYS
     feat = {"coef": 0.5, "lo": 0.1, "hi": 0.9, "proven": True, "importance": 0.5, "volatility": 1.3,
@@ -412,8 +424,56 @@ def _model_build(tmp_path, client=None):
              "scale": {g: [i / 50 for i in range(101)] for g in ("overall",)}}
     build(client or WorldClient(), tmp_path, seasons=(2025,), career_start=2025,
           now=datetime(2025, 9, 20, tzinfo=timezone.utc), weather_fetch=_fake_weather, model=model,
-          shootout_model=SHOOT_HAND)
+          shootout_model=SHOOT_HAND, edge_model=_edge_model())
     return tmp_path
+
+
+def test_early_game_has_edge_score_and_too_early_note(tmp_path):
+    """Weeks 1 to 4 (owner 2026-11-10): the meter shows a score from prior strength; the swing card still waits."""
+    out = _model_build(tmp_path, AdvClient())
+    m = _load(out / "2025" / "matchups" / "7.json")       # F hosts A in week 3: F has 1 game, A has 2
+    e = m["swing"]["overallEdge"]
+    assert set(e) == {"edge", "team", "score"} and 0 <= e["score"] <= 10
+    assert m["swing"]["drivers"] == [] and "fewer than 3 games" in m["swing"]["note"]
+    wk1 = _load(out / "2025" / "matchups" / "1.json")     # nobody has played: Elo and home field only
+    assert wk1["swing"]["overallEdge"] is not None
+    assert wk1["swing"]["drivers"] == []
+
+
+def test_week_one_edge_follows_elo(tmp_path):
+    out = _model_build(tmp_path, AdvClient())
+    e = _load(out / "2025" / "matchups" / "3.json")["swing"]["overallEdge"]   # E hosts F: F is rated 40 higher
+    home_only = _load(out / "2025" / "matchups" / "1.json")["swing"]["overallEdge"]  # A hosts B: B rated 40 higher
+    assert e == home_only   # same Elo gap, same home field, no stats yet: same score
+    client = AdvClient()
+    for g in client.games:
+        if g["id"] == 3:
+            g["awayPregameElo"] = 2100
+    e2 = _load(_model_build(tmp_path / "b", client) / "2025" / "matchups" / "3.json")["swing"]["overallEdge"]
+    assert e2["team"] == "F" and e2["score"] > e["score"]
+
+
+def test_game_without_elo_has_no_edge(tmp_path):
+    out = _model_build(tmp_path, AdvClient())
+    m = _load(out / "2025" / "matchups" / "2.json")
+    assert m["swing"]["overallEdge"] is None and m["game"]["edge"] is None
+
+
+def test_no_edge_model_means_no_edge_score(tmp_path):
+    from cfbm.swing_data import KEYS
+    feat = {"coef": 0.5, "lo": 0.1, "hi": 0.9, "proven": True, "importance": 0.5, "volatility": 1.3,
+            "mean": 0.0, "sd": 1.0, "sideMean": 0.0, "sideSd": 0.01}
+    model = {"seasons": [2024], "games": 1000, "home": {"coef": 0.3}, "features": {k: dict(feat) for k in KEYS},
+             "intercept": 0.0, "scale": {"overall": [i / 50 for i in range(101)]}}
+    build(AdvClient(), tmp_path, seasons=(2025,), career_start=2025, now=datetime(2025, 9, 20, tzinfo=timezone.utc),
+          weather_fetch=_fake_weather, model=model, shootout_model=SHOOT_HAND)
+    assert all(_load(f)["swing"]["overallEdge"] is None for f in (tmp_path / "2025" / "matchups").glob("*.json"))
+
+
+def test_upset_watch_skips_games_with_thin_samples(tmp_path):
+    """Every game now has an edge score, but Upset Watch still needs 3 games per team (its why-line needs swing factors)."""
+    out = _model_build(tmp_path, LinesClient())
+    assert _load(out / "2025" / "upset.json") == {}
 
 
 def test_no_gambling_fields_exported(tmp_path, monkeypatch):
