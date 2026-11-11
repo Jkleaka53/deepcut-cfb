@@ -37,3 +37,30 @@ def test_fit_spread_scale_recovers_k():
     spreads = rng.uniform(-30, 30, 20000)
     wins = (rng.uniform(size=spreads.size) < 1 / (1 + np.exp(spreads / 14))).astype(int)
     assert abs(fit_spread_scale(spreads, wins) - 14) < 1
+
+
+from cfbm.upset import gap, our_prob  # noqa: E402
+
+
+def test_gap_picks_book_underdog():
+    side, g = gap(0.48, 0.30)
+    assert side == "home" and g == pytest.approx(0.18)
+    side, g = gap(0.40, 0.75)
+    assert side == "away" and g == pytest.approx(0.35)  # ours 0.60 vs book 0.25
+
+
+def test_no_pick_without_disagreement():
+    assert gap(0.20, 0.30) is None
+
+
+def test_close_odds_not_an_upset():
+    assert gap(0.60, 0.47) is None
+
+
+def test_neutral_site_no_home_tilt():
+    from tests.test_edge_score import model, pre
+    m = model({})
+    p = pre(Home={}, Away={})
+    assert our_prob(m, p, "Home", "Away", neutral=True) == pytest.approx(0.5)
+    assert our_prob(m, p, "Home", "Away", neutral=False) > 0.5
+    assert our_prob(m, p, "Nobody", "Away", neutral=False) is None

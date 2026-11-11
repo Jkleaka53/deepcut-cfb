@@ -52,3 +52,25 @@ def fit_spread_scale(spreads: np.ndarray, home_win: np.ndarray) -> float:
         if loss < best:
             best, best_k = loss, float(k)
     return round(best_k, 1)
+
+DOG_MAX = 0.45
+
+
+def our_prob(model: dict, pre, home: str, away: str, neutral: bool) -> float | None:
+    """Our pregame home win chance from the edge score's linear model. Internal only, never exported."""
+    from cfbm.edge_score import overall_linear
+
+    lin = overall_linear(model, pre, home, away, neutral)
+    return None if lin is None else 1 / (1 + math.exp(-lin))
+
+
+def gap(our_home: float, book_home: float) -> tuple[str, float] | None:
+    """The book's underdog ("home"/"away") and how much more we like it, when the book gives it at most
+    DOG_MAX and we give it more than the book does."""
+    if book_home <= DOG_MAX:
+        side, ours, book = "home", our_home, book_home
+    elif 1 - book_home <= DOG_MAX:
+        side, ours, book = "away", 1 - our_home, 1 - book_home
+    else:
+        return None
+    return (side, ours - book) if ours > book else None
