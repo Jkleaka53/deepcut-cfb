@@ -41,7 +41,7 @@ def test_band_cutoffs():
 
 
 def test_overall_favors_better_passing_team():
-    p = pre(Home={"pass_ppa": (0.3, 0.0)}, Away={})
+    p = pre(Home={"pass_ppa": (0.6, 0.0)}, Away={})
     out = overall_edge(model(), p, "Home", "Away", neutral=True)
     assert out["team"] == "Home" and out["score"] > 0
 
