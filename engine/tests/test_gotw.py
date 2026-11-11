@@ -53,13 +53,45 @@ def test_ranked_games_preferred_when_any_exist():
     assert pick([STRONG_EVEN, WEAK_EVEN])["11"]["id"] == 1
 
 
-def test_swing_factors_join_the_score_and_the_why():
+def test_swing_factors_show_in_the_why():
     import copy
     a = copy.deepcopy(STRONG_EVEN)
     b = copy.deepcopy(STRONG_EVEN)
     a["swing"] = {"drivers": [{"label": "Big plays"}] * 4}
     b["swing"] = {"drivers": []}
-    assert score(a) > score(b)
     assert "4 swing factors" in why(a)
     assert "swing factor" not in why(b)
 
+
+def _with(m, gid, edge_score=None, run=None, away_rank=None, home_rank=None):
+    import copy
+    out = copy.deepcopy(m)
+    out["game"]["id"] = gid
+    out["game"]["awayRank"], out["game"]["homeRank"] = away_rank, home_rank
+    if edge_score is not None:
+        out["swing"] = {"drivers": [], "overallEdge": {"edge": "slight", "team": "x", "score": edge_score}}
+    if run is not None:
+        for sec in out["sections"]:
+            sec["runUnits"] = [{"rows": [{"key": "r", "offense": {"pct": run}, "defense": {"pct": run}}]}]
+    return out
+
+
+def test_running_game_counts():
+    """Owner 2026-11-10: Game of the Week looks at the running game too, not just passing."""
+    assert score(_with(STRONG_EVEN, 1, edge_score=1.0, run=90)) > score(_with(STRONG_EVEN, 2, edge_score=1.0, run=20))
+
+
+def test_edge_score_sets_closeness():
+    """A near-even edge score beats a near-Big one between equally strong teams."""
+    assert score(_with(STRONG_EVEN, 1, edge_score=0.2)) > score(_with(STRONG_EVEN, 2, edge_score=7.9))
+
+
+def test_both_ranked_beats_one_ranked():
+    """Unranked Missouri at #1 Georgia must not win just because Georgia is ranked."""
+    one = _with(STRONG_EVEN, 6, edge_score=7.9, home_rank=1)
+    both = _with(WEAK_EVEN, 7, edge_score=0.2, away_rank=2, home_rank=22)
+    assert pick([one, both])["11"]["id"] == 7
+
+
+def test_no_edge_score_falls_back_to_passing_gaps():
+    assert score(STRONG_EVEN) is not None and score(STRONG_EVEN) > score(STRONG_LOPSIDED)

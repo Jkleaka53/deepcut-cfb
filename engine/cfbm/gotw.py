@@ -1,16 +1,17 @@
-"""Game of the Week: strong passing units on both sides, with a close edge picture.
+"""Game of the Week: two strong teams in a close game (owner 2026-11-10).
 
-Score = 0.5 x strength + 0.35 x closeness + 0.15 x swing (all 0-100; swing = drivers / 5).
-  strength  = mean national percentile of the four sides (each passing offense, each pass defense)
-  closeness = 100 - mean absolute offense-minus-defense gap across both passing matchups
-Rankings never enter the score; they only decide which games are eligible (see pick).
+Score = 0.5 x strength + 0.5 x closeness (both 0-100).
+  strength  = mean national percentile of every passing AND running row, both offenses and both defenses
+  closeness = 100 - 10 x the overall edge score (0-10); before the edge score exists (early season),
+              100 - mean absolute offense-minus-defense gap across both passing matchups
+Rankings never enter the score; they decide eligibility: games with BOTH teams in the AP Top 25 first,
+then games with one, then any game (see pick).
 """
 
 from __future__ import annotations
 
 TOP_THIRD = 200 / 3
-W_STRENGTH, W_CLOSE, W_SWING = 0.5, 0.35, 0.15
-MAX_DRIVERS = 5
+W_STRENGTH, W_CLOSE = 0.5, 0.5
 
 
 def _sides(sec: dict) -> tuple[float | None, float | None, float | None]:
@@ -22,6 +23,13 @@ def _sides(sec: dict) -> tuple[float | None, float | None, float | None]:
     return mean(off), mean(dfn), mean([abs(x) for x in both])
 
 
+def _strength(secs: list[dict]) -> float | None:
+    xs = [r[side].get("pct") for sec in secs for key in ("units", "runUnits") for u in sec.get(key) or []
+          for r in u["rows"] for side in ("offense", "defense")]
+    xs = [x for x in xs if x is not None]
+    return sum(xs) / len(xs) if xs else None
+
+
 def score(m: dict) -> float | None:
     secs = m.get("sections") or []
     if len(secs) != 2:
@@ -29,10 +37,10 @@ def score(m: dict) -> float | None:
     vals = [_sides(s) for s in secs]
     if any(v is None for trio in vals for v in trio):
         return None
-    strength = sum(o + d for o, d, _ in vals) / 4
-    closeness = 100 - sum(g for _, _, g in vals) / 2
-    swing = 100 * min(len(_drivers(m)), MAX_DRIVERS) / MAX_DRIVERS
-    return W_STRENGTH * strength + W_CLOSE * closeness + W_SWING * swing
+    strength = _strength(secs)
+    edge = ((m.get("swing") or {}).get("overallEdge") or {}).get("score")
+    closeness = 100 - 10 * edge if edge is not None else 100 - sum(g for _, _, g in vals) / 2
+    return W_STRENGTH * strength + W_CLOSE * closeness
 
 
 def _drivers(m: dict) -> list:
@@ -77,22 +85,21 @@ def _week(g: dict) -> str:
     return "post" if g.get("seasonType") == "postseason" else str(g.get("week"))
 
 
-def _ranked(g: dict) -> bool:
-    return g.get("homeRank") is not None or g.get("awayRank") is not None
+def _tier(g: dict) -> int:
+    return (g.get("homeRank") is not None) + (g.get("awayRank") is not None)
 
 
 def pick(matchups: list[dict]) -> dict[str, dict]:
-    """Best score per week. Games with an AP Top 25 team are the only candidates when the week has any:
-    a strong-on-paper Group of 5 game built on a weak schedule shouldn't headline the week."""
-    weeks_with_ranked = {_week(m["game"]) for m in matchups if _ranked(m["game"]) and score(m) is not None}
-    best: dict[str, tuple[float, dict]] = {}
+    """Best score per week among the week's highest ranking tier that has a scored game: both teams in
+    the AP Top 25, else one, else any. A strong-on-paper game against an unranked or weak-schedule
+    opponent shouldn't headline the week."""
+    best: dict[str, tuple[tuple[int, float], dict]] = {}
     for m in matchups:
-        if _week(m["game"]) in weeks_with_ranked and not _ranked(m["game"]):
-            continue
         sc = score(m)
         if sc is None:
             continue
         wk = _week(m["game"])
-        if wk not in best or sc > best[wk][0]:
-            best[wk] = (sc, m)
+        key = (_tier(m["game"]), sc)
+        if wk not in best or key > best[wk][0]:
+            best[wk] = (key, m)
     return {wk: {"id": int(m["game"]["id"]), "why": why(m)} for wk, (_, m) in best.items()}
