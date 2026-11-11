@@ -279,7 +279,8 @@ def test_swing_block_with_injected_model(tmp_path):
     feat = {"coef": 0.5, "lo": 0.1, "hi": 0.9, "proven": True, "importance": 0.5, "volatility": 1.3,
             "mean": 0.0, "sd": 1.0, "sideMean": 0.0, "sideSd": 0.01}
     model = {"seasons": [2024], "games": 1000, "home": {"coef": 0.3, "lo": 0.1, "hi": 0.5},
-             "features": {k: dict(feat) for k in KEYS}}
+             "features": {k: dict(feat) for k in KEYS}, "intercept": 0.0,
+             "scale": {g: [i / 50 for i in range(101)] for g in ("overall", "pass", "run")}}
     build(WorldClient(), tmp_path, seasons=(2025,), career_start=2025, now=datetime(2025, 9, 20, tzinfo=timezone.utc),
           weather_fetch=_fake_weather, model=model)
     m = _load(tmp_path / "2025" / "matchups" / "7.json")
@@ -358,3 +359,98 @@ def test_matchup_carries_team_records(out):
     m = _load(out / "2025" / "matchups" / "7.json")  # F vs A, week 3
     assert set(m["records"]) == {"F", "A"}
     assert m["records"]["A"]["wins"] + m["records"]["A"]["losses"] == 2
+
+
+BANNED = {"winprob", "probability", "prob", "logit", "linear", "predictedtotal", "spread", "margin"}
+
+
+def _walk(x):
+    """Yield (key, value, parent dict) for every key in a JSON tree."""
+    if isinstance(x, dict):
+        for k, v in x.items():
+            yield k, v, x
+            yield from _walk(v)
+    elif isinstance(x, list):
+        for v in x:
+            yield from _walk(v)
+
+
+class AdvClient(WorldClient):
+    """WorldClient plus per-game advanced stats, so the edge score has pregame numbers to use."""
+
+    def get(self, path, params, *, cacheable=True):
+        if path == "/stats/game/advanced":
+            out = []
+            for g in self.games:
+                if not g["completed"] or g["homeTeam"] not in FBS or g["awayTeam"] not in FBS:
+                    continue
+                for t, o in ((g["homeTeam"], g["awayTeam"]), (g["awayTeam"], g["homeTeam"])):
+                    lvl = (ord(t[0]) - 65) / 10
+                    side = lambda v: {"passingPlays": {"ppa": v, "successRate": v}, "passingDowns": {"successRate": v},
+                                      "rushingPlays": {"ppa": v, "successRate": v}, "standardDowns": {"successRate": v},
+                                      "explosiveness": v, "stuffRate": v, "lineYards": v}
+                    out.append({"gameId": g["id"], "season": 2025, "week": g["week"], "seasonType": g["seasonType"],
+                                "team": t, "opponent": o, "offense": side(lvl), "defense": side(0.5 - lvl)})
+            return out
+        return super().get(path, params, cacheable=cacheable)
+
+
+def _model_build(tmp_path, client=None):
+    from cfbm.swing_data import KEYS
+    feat = {"coef": 0.5, "lo": 0.1, "hi": 0.9, "proven": True, "importance": 0.5, "volatility": 1.3,
+            "mean": 0.0, "sd": 1.0, "sideMean": 0.0, "sideSd": 0.01}
+    model = {"seasons": [2024], "games": 1000, "home": {"coef": 0.3, "lo": 0.1, "hi": 0.5},
+             "features": {k: dict(feat) for k in KEYS}, "intercept": 0.0,
+             "scale": {g: [i / 50 for i in range(101)] for g in ("overall", "pass", "run")}}
+    build(client or WorldClient(), tmp_path, seasons=(2025,), career_start=2025,
+          now=datetime(2025, 9, 20, tzinfo=timezone.utc), weather_fetch=_fake_weather, model=model)
+    return tmp_path
+
+
+def test_no_gambling_fields_exported(tmp_path, monkeypatch):
+    import cfbm.export
+    import cfbm.swing
+    monkeypatch.setattr(cfbm.export, "MIN_PRIOR", 1)
+    monkeypatch.setattr(cfbm.swing, "MIN_PRIOR", 1)
+    out = _model_build(tmp_path, AdvClient())
+    docs = [_load(f) for f in (out / "2025" / "matchups").glob("*.json")] + [_load(out / "2025" / "games.json")]
+    scores = 0
+    for doc in docs:
+        for k, v, parent in _walk(doc):
+            assert k.lower() not in BANNED, k
+            edge_score = k in ("edgeScore", "runEdgeScore") or (k == "score" and ("band" in parent or "team" in parent and "edge" in parent))
+            if edge_score and isinstance(v, (int, float)):
+                assert 0 <= v <= 10
+                scores += 1
+    assert scores > 0
+
+
+def test_section_edges_fall_back_without_model(out):
+    from cfbm.units import side_edge
+    m = _load(out / "2025" / "matchups" / "7.json")
+    for sec in m["sections"]:
+        rows = [r for u in sec["units"] for r in u["rows"]]
+        assert sec["edgeScore"] is None and sec["edge"] == side_edge(rows) == sec["rowEdge"]
+        assert sec["runEdgeScore"] is None
+
+
+def test_section_edges_fall_back_early(tmp_path):
+    from cfbm.units import side_edge
+    out = _model_build(tmp_path)
+    early = [m for m in (_load(f) for f in (out / "2025" / "matchups").glob("*.json"))
+             if m["swing"] and m["swing"]["overallEdge"] is None]
+    assert early
+    for m in early:
+        for sec in m["sections"]:
+            rows = [r for u in sec["units"] for r in u["rows"]]
+            assert sec["edgeScore"] is None and sec["edge"] == side_edge(rows)
+
+
+def test_summary_edge_mirrors_overall(tmp_path):
+    out = _model_build(tmp_path)
+    games = {g["id"]: g for g in _load(out / "2025" / "games.json")}
+    for f in (out / "2025" / "matchups").glob("*.json"):
+        m = _load(f)
+        o = m["swing"]["overallEdge"] if m["swing"] else None
+        want = None if not o or o["edge"] == "even" else {"band": o["edge"], "team": o["team"], "score": o["score"]}
+        assert games[m["game"]["id"]]["edge"] == want == m["game"]["edge"]

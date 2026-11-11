@@ -11,7 +11,8 @@ def feat(proven=True, importance=0.5, vol=1.3, side_mean=0.0, side_sd=0.1):
 
 MODEL = {"features": {k: feat(proven=k in ("pass_ppa", "sd_sr", "pd_sr", "explosive"),
                               importance={"sd_sr": 0.8, "pass_ppa": 0.35, "pd_sr": 0.33, "explosive": 0.25}.get(k, 0.1))
-                      for k in KEYS}}
+                      for k in KEYS},
+         "intercept": 0.0, "home": {"coef": 0.3}, "scale": {g: [i / 50 for i in range(101)] for g in ("overall", "pass", "run")}}
 
 
 def pre(**teams):
@@ -103,3 +104,10 @@ def test_key_rows_map_run_parents():
     assert keys & set(want), "fixture should yield a run driver for Oregon"
     for k in keys & set(want):
         assert want[k] in out["keyRows"]["Oregon"]
+
+
+def test_overall_edge_has_score():
+    p = pre(Oregon=(8, {k: (0.4, -0.3) for k in KEYS}), Michigan=(8, {k: (-0.3, 0.4) for k in KEYS}))
+    e = swing_block(MODEL, "Oregon", "Michigan", p, neutral=False)["overallEdge"]
+    assert 0 <= e["score"] <= 10 and e["edge"] in ("even", "slight", "clear")
+    assert set(e) == {"edge", "team", "score"}

@@ -1,4 +1,4 @@
-"""What could swing this game: factor = importance x gap x volatility, plus the overall weighted edge.
+"""What could swing this game: factor = importance x gap x volatility, plus the overall edge score (cfbm.edge_score).
 Words only: never a win probability or a margin."""
 
 from __future__ import annotations
@@ -6,6 +6,7 @@ from __future__ import annotations
 import pandas as pd
 
 from cfbm.swing_data import DIRECTION, FEATURES, MIN_PRIOR, side_advantage
+from cfbm.edge_score import overall_edge
 from cfbm.units import edge
 
 LABEL = {k: label for k, _, _, label in FEATURES}
@@ -44,7 +45,7 @@ def swing_block(model: dict, home: str, away: str, pre: pd.DataFrame, neutral: b
                 "note": f"Too early in the season: {' and '.join(short)} {'has' if len(short) == 1 else 'have'} "
                         f"fewer than {MIN_PRIOR} games against FBS teams."}
     n = len(pre)
-    cands, weighted, weight = [], 0.0, 0.0
+    cands = []
     for off, dfn in ((away, home), (home, away)):
         for k, f in feats.items():
             if f["importance"] <= 0:
@@ -57,8 +58,6 @@ def swing_block(model: dict, home: str, away: str, pre: pd.DataFrame, neutral: b
                 continue
             (off_rank, off_pct), (def_rank, def_pct) = o, df
             gap = off_pct - def_pct
-            weighted += f["importance"] * (gap if off == home else -gap)
-            weight += f["importance"]
             band = (edge(off_pct, def_pct) or "even").split("-")[0]
             # One measure decides both the badge and the team: the rank gap between the two units.
             if not f["proven"] or abs(z) < GAP_FLOOR or band == "even":
@@ -68,11 +67,7 @@ def swing_block(model: dict, home: str, away: str, pre: pd.DataFrame, neutral: b
                           "cue": CUES[k].format(off=off, **{"def": dfn}),
                           "score": round(f["importance"] * abs(z) * f["volatility"], 4)})
     drivers = sorted(cands, key=lambda c: -c["score"])[:MAX_DRIVERS]
-    overall = None
-    if weight:
-        g = weighted / weight
-        band = edge(50 + g / 2, 50 - g / 2)
-        overall = {"edge": band.split("-")[0] if band else "even", "team": None if band in (None, "even") else (home if g > 0 else away)}
+    overall = overall_edge(model, pre, home, away, neutral)
     key_rows = {home: [], away: []}
     for dr in drivers:
         if dr["key"] in KEY_ROW and KEY_ROW[dr["key"]] not in key_rows[dr["offense"]]:

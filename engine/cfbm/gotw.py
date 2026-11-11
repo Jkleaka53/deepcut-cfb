@@ -58,7 +58,7 @@ def why(m: dict) -> str:
         parts.append(f"{names[0].upper()}{names[1:]} {'ranks' if len(strong) == 1 else 'rank'} in the top third of FBS.")
     edges = []
     for s in secs:
-        e = s.get("edge") or "even"
+        e = s.get("rowEdge", s.get("edge")) or "even"
         if e.endswith("defense"):
             edges.append(f"{s['defenseTeam']}'s defense has the edge when {s['offenseTeam']} passes")
         elif e.endswith("offense"):
