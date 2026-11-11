@@ -29,7 +29,7 @@ export default function EdgeCard({ sections, teams, overall, home, away }: {
   return (
     <div className="card">
       <h4>The edge</h4>
-      {scored && <EdgeMeter overall={overall} home={home} away={away} teams={teams} />}
+      {scored && <EdgeMeter overall={overall} home={home} away={away} />}
       {o && <p className="edge-overall">{o}</p>}
       <p className="edge-sentence">{sentence(sections)}</p>
       {[...sections.map((s) => ({ s, verb: "passes" as const })),

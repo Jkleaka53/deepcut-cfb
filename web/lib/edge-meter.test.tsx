@@ -13,7 +13,7 @@ const om: TeamInfo = { school: "Ole Miss", id: 145, abbr: "MISS", conference: "S
 describe("edge meter", () => {
   it("shows team, band and score, filling toward the favored side", () => {
     const html = text(renderToString(
-      <EdgeMeter overall={{ edge: "slight", team: "Ole Miss", score: 3.4 }} home="Ole Miss" away="Missouri" teams={{}} />));
+      <EdgeMeter overall={{ edge: "slight", team: "Ole Miss", score: 3.4 }} home="Ole Miss" away="Missouri" />));
     expect(html).toContain("Ole Miss");
     expect(html).toContain("Slight edge");
     expect(html).toContain("3.4");
@@ -21,23 +21,28 @@ describe("edge meter", () => {
   });
   it("fills toward the away side from the center", () => {
     const html = text(renderToString(
-      <EdgeMeter overall={{ edge: "clear", team: "Missouri", score: 9 }} home="Ole Miss" away="Missouri" teams={{}} />));
+      <EdgeMeter overall={{ edge: "clear", team: "Missouri", score: 9 }} home="Ole Miss" away="Missouri" />));
     expect(html).toMatch(/class="em-fill"[^>]*style="left:5%;width:45%"/);
     expect(html).toContain("Big edge");
   });
   it("says Even with no fill for an even game", () => {
     const html = text(renderToString(
-      <EdgeMeter overall={{ edge: "even", team: null, score: 0.6 }} home="Ole Miss" away="Missouri" teams={{}} />));
+      <EdgeMeter overall={{ edge: "even", team: null, score: 0.6 }} home="Ole Miss" away="Missouri" />));
     expect(html).toContain("Even");
     expect(html).toContain("0.6");
     expect(html).not.toContain("em-fill");
   });
+  it("fills with the accent token, not a team color (team navies vanish in dark mode)", () => {
+    const html = text(renderToString(
+      <EdgeMeter overall={{ edge: "slight", team: "Ole Miss", score: 3.4 }} home="Ole Miss" away="Missouri" />));
+    expect(html).not.toContain("#14213d");
+  });
   it("is hidden when overall is null", () => {
-    expect(renderToString(<EdgeMeter overall={null} home="A" away="B" teams={{}} />)).toBe("");
+    expect(renderToString(<EdgeMeter overall={null} home="A" away="B" />)).toBe("");
   });
   it("lists the cutoffs in the legend", () => {
     const html = text(renderToString(
-      <EdgeMeter overall={{ edge: "slight", team: "Ole Miss", score: 3.4 }} home="Ole Miss" away="Missouri" teams={{}} />));
+      <EdgeMeter overall={{ edge: "slight", team: "Ole Miss", score: 3.4 }} home="Ole Miss" away="Missouri" />));
     expect(html).toContain("Under 2 Even · 2 to 8 Slight · 8+ Big");
   });
 });
