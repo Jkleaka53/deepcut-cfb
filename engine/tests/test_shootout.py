@@ -99,3 +99,54 @@ def test_nan_feature_disqualifies():
 
 def test_early_team_disqualifies():
     assert game_score(HAND, _pre(1.0, 0.5, games=2), "H", "A", neutral=False) is None
+
+
+from cfbm.shootout import pick, why_text  # noqa: E402
+
+
+def _s(gid, week="7"):
+    return {"id": gid, "week": int(week), "seasonType": "regular"}
+
+
+def test_pick_skips_gotw():
+    scored = [(_s(1), 70.0, "w1"), (_s(2), 65.0, "w2"), (_s(3), 60.0, "w3")]
+    picks, watch = pick(scored, {"7": {"id": 1, "why": "x"}})
+    assert picks["7"] == {"id": 2, "why": "w2"}
+    assert 1 not in watch and 2 not in watch and watch == {3}
+
+
+def test_watch_is_next_three():
+    scored = [(_s(i), 100.0 - i, f"w{i}") for i in range(1, 7)]
+    picks, watch = pick(scored, {})
+    assert picks["7"]["id"] == 1 and watch == {2, 3, 4}
+
+
+def test_no_pick_when_nothing_qualifies():
+    picks, watch = pick([(_s(1, "8"), 50.0, "w")], {})
+    assert "7" not in picks and picks["8"]["id"] == 1 and watch == set()
+
+
+def _rank_pre():
+    n = 30
+    teams = [f"T{i}" for i in range(n)]
+    pre = pd.DataFrame({"games": 5, "off_ppa": np.linspace(0.5, -0.4, n), "def_ppa": np.linspace(-0.4, 0.5, n),
+                        "off_sr": 0.4, "def_sr": 0.4, "off_expl": 1.0, "def_expl": 1.0,
+                        "off_drives": np.linspace(16, 9, n), "def_drives": 12.0}, index=teams)
+    return pre
+
+
+def test_why_text_both_ways():
+    pre = _rank_pre()
+    # T0 and T1: best offenses, best defenses -> not "both defenses give it up"
+    assert why_text(pre, "T1", "T0") == ("Lots of expected scoring: offenses rank 1st and 2nd in points added per play, "
+                                         "defenses 1st and 2nd of 30. Pace: 1st and 2nd in drives per game.")
+    # Make T28/T29 strong offenses with weak defenses
+    pre.loc[["T28", "T29"], "off_ppa"] = [0.6, 0.7]
+    assert why_text(pre, "T28", "T29").startswith("Both offenses score efficiently and both defenses give it up: "
+                                                  "offenses rank 1st and 2nd")
+
+
+def test_ordinal():
+    from cfbm.shootout import ordinal
+    assert [ordinal(n) for n in (1, 2, 3, 4, 11, 12, 13, 21, 22, 101, 112)] == \
+        ["1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "101st", "112th"]

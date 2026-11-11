@@ -390,11 +390,17 @@ class AdvClient(WorldClient):
                     lvl = (ord(t[0]) - 65) / 10
                     side = lambda v: {"passingPlays": {"ppa": v, "successRate": v}, "passingDowns": {"successRate": v},
                                       "rushingPlays": {"ppa": v, "successRate": v}, "standardDowns": {"successRate": v},
-                                      "explosiveness": v, "stuffRate": v, "lineYards": v}
+                                      "explosiveness": v, "stuffRate": v, "lineYards": v,
+                                      "ppa": v, "successRate": v, "drives": 10 + 4 * v}
                     out.append({"gameId": g["id"], "season": 2025, "week": g["week"], "seasonType": g["seasonType"],
                                 "team": t, "opponent": o, "offense": side(lvl), "defense": side(0.5 - lvl)})
             return out
         return super().get(path, params, cacheable=cacheable)
+
+
+SHOOT_HAND = {"means": {k: 0.0 for k in ("x_ppa", "x_sr", "x_expl", "x_pace", "home")},
+              "sds": {k: 1.0 for k in ("x_ppa", "x_sr", "x_expl", "x_pace", "home")},
+              "coef": {"x_ppa": 10.0, "x_sr": 0.0, "x_expl": 0.0, "x_pace": 1.0, "home": 1.0}, "intercept": 20.0}
 
 
 def _model_build(tmp_path, client=None):
@@ -405,7 +411,8 @@ def _model_build(tmp_path, client=None):
              "features": {k: dict(feat) for k in KEYS}, "intercept": 0.0,
              "scale": {g: [i / 50 for i in range(101)] for g in ("overall",)}}
     build(client or WorldClient(), tmp_path, seasons=(2025,), career_start=2025,
-          now=datetime(2025, 9, 20, tzinfo=timezone.utc), weather_fetch=_fake_weather, model=model)
+          now=datetime(2025, 9, 20, tzinfo=timezone.utc), weather_fetch=_fake_weather, model=model,
+          shootout_model=SHOOT_HAND)
     return tmp_path
 
 
@@ -453,3 +460,35 @@ def test_summary_edge_mirrors_overall(tmp_path):
         o = m["swing"]["overallEdge"] if m["swing"] else None
         want = None if not o or o["edge"] == "even" else {"band": o["edge"], "team": o["team"], "score": o["score"]}
         assert games[m["game"]["id"]]["edge"] == want == m["game"]["edge"]
+
+
+def test_shootout_exports_no_numbers(tmp_path, monkeypatch):
+    """Shootout of the Week publishes a pick and a reason in words, never predicted points."""
+    import re
+
+    import cfbm.shootout
+    import cfbm.swing
+    monkeypatch.setattr(cfbm.swing, "MIN_PRIOR", 1)
+    monkeypatch.setattr(cfbm.shootout, "MIN_PRIOR", 1)
+    out = _model_build(tmp_path, AdvClient())
+    picks = _load(out / "2025" / "shootout.json")
+    assert picks
+    gotw = _load(out / "2025" / "gotw.json")
+    for wk, p in picks.items():
+        assert set(p) == {"id", "why"}
+        assert not re.search(r"\d+(\.\d+)?\s*points?\b", p["why"])
+        assert p["id"] != (gotw.get(wk) or {}).get("id")
+    games = _load(out / "2025" / "games.json")
+    assert all(isinstance(g["shootoutWatch"], bool) for g in games)
+    for g in games:
+        assert not {k for k in g if k.lower() in {"total", "points", "predictedtotal", "predicted"}}
+        assert not any(k.startswith("predicted") for k in g)
+
+
+def test_shootout_file_empty_without_model(tmp_path):
+    from cfbm.export import build
+    build(WorldClient(), tmp_path, seasons=(2025,), career_start=2025,
+          now=datetime(2025, 9, 20, tzinfo=timezone.utc), weather_fetch=_fake_weather, model={},
+          shootout_model={})
+    assert _load(tmp_path / "2025" / "shootout.json") == {}
+    assert all(g["shootoutWatch"] is False for g in _load(tmp_path / "2025" / "games.json"))

@@ -28,7 +28,8 @@ from cfbm.skill import SKILL_COLUMNS, skill_games
 from cfbm.watch import watch_list
 from cfbm.backup import backup_block
 from cfbm.storylines import game_facts, storylines
-from cfbm.shootout import SHOOT_FEATURES
+from cfbm import shootout
+from cfbm.shootout import SHOOT_COLS, SHOOT_FEATURES
 from cfbm.swing import swing_block
 from cfbm.swing_data import pregame, team_games, training_frame
 from cfbm.swing_model import train
@@ -95,7 +96,9 @@ class _Data:
         self.teams: dict[int, dict[str, dict]] = {}
         self.venues: dict[int, dict] = fetch.venues(client)
         self.positions: dict[int, str] = fetch.roster_positions(client, live_season, True)
-        self.adv = team_games([r for s in seasons_all for r in fetch.game_advanced(client, s, s == live_season)])
+        raw_adv = [r for s in seasons_all for r in fetch.game_advanced(client, s, s == live_season)]
+        self.adv = team_games(raw_adv)
+        self.shoot = team_games(raw_adv, SHOOT_FEATURES)
         self.game_by_id: dict[int, dict] = {}
         tgs, passers, skill = [], [], []
         for s in seasons_all:
@@ -124,7 +127,7 @@ class _Data:
         skill = [k for k in skill if not k.empty]
         self.skill = pd.concat(skill, ignore_index=True) if skill else pd.DataFrame(columns=SKILL_COLUMNS)
         # Chronological order (postseason by date, since CFBD numbers every bowl week 1).
-        for frame in (self.tg, self.passers, self.skill, self.adv):
+        for frame in (self.tg, self.passers, self.skill, self.adv, self.shoot):
             if not frame.empty:
                 frame["order"] = [self.orders.get(gid, o) for gid, o in zip(frame["game_id"], frame["order"])]
         self.full_tiers = {s: assign_tiers(season_profile(self.tg, s, None, self.havoc.get(s)), self.fbs[s])
@@ -221,6 +224,34 @@ def _pregame(d: _Data, g: dict, order: int) -> pd.DataFrame:
     fbs = d.fbs[s]
     rows = d.adv[d.adv["team"].isin(fbs) & d.adv["opponent"].isin(fbs)]
     return pregame(rows, s, order)
+
+
+def _shoot_pregame(d: _Data, g: dict, order: int) -> pd.DataFrame:
+    s = g["season"]
+    fbs = d.fbs[s]
+    rows = d.shoot[d.shoot["team"].isin(fbs) & d.shoot["opponent"].isin(fbs)]
+    return pregame(rows, s, order, SHOOT_COLS)
+
+
+def shootout_picks(d: _Data, built: list[dict], model: dict, gotw: dict) -> tuple[dict, set[int]]:
+    """Score every built game for Shootout of the Week; returns (picks by week, Shootout watch ids)."""
+    if not model:
+        return {}, set()
+    scored = []
+    for m in built:
+        g = d.game_by_id.get(m["game"]["id"])
+        if g is None:
+            continue
+        pre = _shoot_pregame(d, g, d.orders.get(g["id"], order_key(g["seasonType"], g["week"])))
+        sc = shootout.game_score(model, pre, g["homeTeam"], g["awayTeam"], bool(g.get("neutralSite")))
+        if sc is not None:
+            scored.append((g, sc, shootout.why_text(pre, g["homeTeam"], g["awayTeam"])))
+    return shootout.pick(scored, gotw)
+
+
+def train_shootout(client, seasons) -> dict | None:
+    rows = shootout.training_rows(*shootout_inputs(client, seasons))
+    return shootout.fit(rows) if len(rows) else None
 
 
 def _swing(d: _Data, g: dict, order: int, qbs: dict, model: dict, pre: pd.DataFrame) -> dict:
@@ -363,13 +394,15 @@ def venue_block(v: dict | None) -> dict | None:
 
 def build(client, out_dir: Path, seasons=config.DISPLAY_SEASONS, now: datetime | None = None,
           career_start: int = config.CAREER_START_SEASON, weather_fetch=None, model: dict | None = None,
-          train_seasons=config.TRAIN_SEASONS) -> None:
+          train_seasons=config.TRAIN_SEASONS, shootout_model: dict | None = None) -> None:
     out_dir = Path(out_dir)
     live = max(seasons)
     seasons_all = list(range(min(career_start, min(seasons)), live + 1))
     d = _Data(client, seasons_all, live)
     if model is None:
         model = train_model(client, train_seasons)
+    if shootout_model is None:
+        shootout_model = train_shootout(client, train_seasons)
     now = now or datetime.now(timezone.utc)
     fetch_json = weather_fetch or http_fetch
     calls: dict = {}
@@ -411,8 +444,13 @@ def build(client, out_dir: Path, seasons=config.DISPLAY_SEASONS, now: datetime |
                     {"band": o["edge"], "team": o["team"], "score": o["score"]} if o and o["edge"] != "even" else None)
                 _write(out_dir / str(s) / "matchups" / f"{g['id']}.json", m)
                 built.append(m)
+        gotw = pick_gotw(built)
+        shoot, watch = shootout_picks(d, built, shootout_model, gotw)
+        for summ in summaries:
+            summ["shootoutWatch"] = summ["id"] in watch
         _write(out_dir / str(s) / "games.json", summaries)
-        _write(out_dir / str(s) / "gotw.json", pick_gotw(built))
+        _write(out_dir / str(s) / "gotw.json", gotw)
+        _write(out_dir / str(s) / "shootout.json", shoot)
 
     week, st = _current(d.games[live], now) if d.games[live] else (1, "regular")
     _write(out_dir / "index.json", {

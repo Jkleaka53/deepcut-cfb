@@ -102,3 +102,49 @@ def predicted_total(model: dict, pre: pd.DataFrame, home: str, away: str, neutra
     """Sum of both sides' predicted points. Never exported."""
     s = _sides(model, pre, home, away, neutral)
     return None if s is None else sum(s)
+
+
+WHY_BOTH = "Both offenses score efficiently and both defenses give it up"
+WHY_LOTS = "Lots of expected scoring"
+WHY_TAIL = ("offenses rank {ao} and {ho} in points added per play, defenses {ad} and {hd} of {n}. "
+            "Pace: {ap} and {hp} in drives per game.")
+
+
+def ordinal(n: int) -> str:
+    suffix = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
+
+
+def _rank(series: pd.Series, team: str, ascending: bool) -> int:
+    vals = series.dropna()
+    v = vals[team]
+    return int(1 + ((vals < v) if ascending else (vals > v)).sum())
+
+
+def why_text(pre: pd.DataFrame, home: str, away: str) -> str:
+    """Plain-words reason: national ranks only (offense by points added per play, defense 1 = best, pace by
+    drives per game). Opens with 'Both offenses...' only when both offenses are top third and both
+    defenses bottom third."""
+    n = int(pre["off_ppa"].notna().sum())
+    r = {f"{p}o": _rank(pre["off_ppa"], t, False) for p, t in (("a", away), ("h", home))}
+    r |= {f"{p}d": _rank(pre["def_ppa"], t, True) for p, t in (("a", away), ("h", home))}
+    r |= {f"{p}p": _rank(pre["off_drives"], t, False) for p, t in (("a", away), ("h", home))}
+    both = max(r["ao"], r["ho"]) <= n / 3 and min(r["ad"], r["hd"]) > 2 * n / 3
+    return f"{WHY_BOTH if both else WHY_LOTS}: " + WHY_TAIL.format(n=n, **{k: ordinal(v) for k, v in r.items()})
+
+
+def pick(scored: list[tuple[dict, float, str]], gotw: dict[str, dict]) -> tuple[dict[str, dict], set[int]]:
+    """Per week: the top score (skipping the Game of the Week) is the pick; the next 3 get Shootout watch."""
+    by_week: dict[str, list[tuple[dict, float, str]]] = {}
+    for item in scored:
+        by_week.setdefault(_week(item[0]), []).append(item)
+    picks, watch = {}, set()
+    for wk, items in by_week.items():
+        skip = (gotw.get(wk) or {}).get("id")
+        ranked = [x for x in sorted(items, key=lambda x: -x[1]) if x[0]["id"] != skip]
+        if not ranked:
+            continue
+        top = ranked[0]
+        picks[wk] = {"id": int(top[0]["id"]), "why": top[2]}
+        watch |= {int(x[0]["id"]) for x in ranked[1:4]}
+    return picks, watch
