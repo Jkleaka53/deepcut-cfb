@@ -45,6 +45,40 @@ def edge_cutoffs(client) -> None:
         print(f"score<{c}: n={len(lo)} fav={lo['favored_won'].mean():.3f} | score>={c}: n={len(hi)} fav={hi['favored_won'].mean():.3f}")
 
 
+def _history(client):
+    """Games, lines and FBS sets for the training seasons (cached)."""
+    from cfbm import config, fetch
+
+    games, lines, fbs = {}, {}, {}
+    for y in config.TRAIN_SEASONS:
+        fbs[y] = fetch.fbs_teams(client, y)
+        games.update({g["id"]: g for g in fetch.games(client, y, False)})
+        lines.update({ln["id"]: ln for ln in fetch.lines(client, y, False)})
+    return games, lines, fbs
+
+
+def edge_audit(client) -> None:
+    """Held-out edge model against the closing spread, plus a check that pregame Elo is really pregame."""
+    from cfbm import config
+    from cfbm.edge_audit import compare, elo_continuity, market_frame
+    from cfbm.edge_backtest import held_out
+    from cfbm.export import training_data
+
+    data = training_data(client, config.TRAIN_SEASONS)
+    if data is None:
+        sys.exit("Not enough training games.")
+    games, lines, fbs = _history(client)
+    market = market_frame(games, lines, fbs)
+    held = held_out(*data)
+    print(f"market games {len(market)}  spread scale k={market.attrs.get('k')}")
+    print("current model, games it scores:", compare(held, market))
+    for s in sorted(held["season"].unique()):
+        print(" ", s, compare(held, market, held["season"] == s))
+    for y in config.TRAIN_SEASONS:
+        gs = [g for g in games.values() if g["season"] == y]
+        print(f"  elo continuity {y}: FBS-vs-FBS {elo_continuity(gs, fbs[y]):.4f}  (all rows {elo_continuity(gs):.4f})")
+
+
 def shootout_backtest(client, check_season: int = 2026, check_week: int = 10,
                       check_id: int = 401856856) -> None:
     from cfbm import config
@@ -161,6 +195,7 @@ def main(argv: list[str] | None = None) -> None:
     b = sub.add_parser("build", help="Pull CFBD data and write the site's JSON")
     b.add_argument("--out", type=Path, default=ROOT / "web" / "public" / "data")
     sub.add_parser("edge-cutoffs", help="Backtest the edge score and print Even/Slight/Big cutoffs")
+    sub.add_parser("edge-audit", help="Held-out edge model against the closing spread")
     sub.add_parser("shootout-backtest", help="Backtest Shootout of the Week (leave one season out)")
     sub.add_parser("upset-backtest", help="Backtest Upset Watch (leave one season out)")
     args = parser.parse_args(argv)
@@ -168,6 +203,9 @@ def main(argv: list[str] | None = None) -> None:
     client = CfbdClient(api_key(), ENGINE / ".cache")
     if args.cmd == "edge-cutoffs":
         edge_cutoffs(client)
+        return
+    if args.cmd == "edge-audit":
+        edge_audit(client)
         return
     if args.cmd == "shootout-backtest":
         shootout_backtest(client)
