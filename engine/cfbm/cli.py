@@ -86,6 +86,75 @@ def shootout_backtest(client, check_season: int = 2026, check_week: int = 10,
     print("actual top 5 totals:", [(r[1], r[2], r[3]) for r in by_total])
 
 
+def upset_backtest(client, check_season: int = 2026, check_weeks: tuple[int, ...] = (10, 11)) -> None:
+    import numpy as np
+
+    from cfbm import config, fetch
+    from cfbm.edge_backtest import held_out
+    from cfbm.export import train_model, training_data
+    from cfbm.plays import game_orders
+    from cfbm.swing_data import apply_orders, pregame, team_games
+    from cfbm.upset import book_prob, fit_spread_scale, gap, our_prob, spread_of
+    from cfbm.upset_backtest import covered, join, summary, weekly_picks
+
+    data = training_data(client, config.TRAIN_SEASONS)
+    if data is None:
+        sys.exit("Not enough training games.")
+    held = held_out(*data)
+    games, lines = {}, {}
+    for y in config.TRAIN_SEASONS:
+        games.update({g["id"]: g for g in fetch.games(client, y, False)})
+        lines.update({ln["id"]: ln for ln in fetch.lines(client, y, False)})
+    sp, hw = [], []
+    for gid, ln in lines.items():
+        g, s_ = games.get(gid), spread_of(ln)
+        if g and s_ is not None and g.get("homePoints") is not None and g.get("awayPoints") is not None \
+                and g["homePoints"] != g["awayPoints"]:
+            sp.append(s_)
+            hw.append(int(g["homePoints"] > g["awayPoints"]))
+    k = fit_spread_scale(np.array(sp), np.array(hw))
+    df = join(held, lines, games, k)
+    picks = weekly_picks(df)
+    print(f"spread scale k={k}  games with model+spread {len(df)}")
+    print("ALL", summary(picks))
+    for s_, p in picks.groupby("season"):
+        print(s_, summary(p))
+    dogs = []
+    for r in df.itertuples():
+        bh = r.book_home
+        dog = "home" if bh <= 0.45 else "away" if 1 - bh <= 0.45 else None
+        if dog:
+            dogs.append(covered(dog, r.spread, r.home_margin))
+    print(f"control: all <=45% underdogs n={len(dogs)} cover={np.mean(dogs):.3f}")
+
+    model = train_model(client, config.TRAIN_SEASONS)
+    g26 = {g["id"]: g for g in fetch.games(client, check_season, False)}
+    l26 = {ln["id"]: ln for ln in fetch.lines(client, check_season, False)}
+    fbs = fetch.fbs_teams(client, check_season)
+    orders = game_orders(list(g26.values()))
+    tg = apply_orders(team_games(fetch.game_advanced(client, check_season, False)), orders)
+    tg = tg[tg["team"].isin(fbs) & tg["opponent"].isin(fbs)]
+    for wk in check_weeks:
+        cands = []
+        for g in g26.values():
+            if g.get("week") != wk or g["seasonType"] != "regular" or g["homeTeam"] not in fbs or g["awayTeam"] not in fbs:
+                continue
+            bh = book_prob(l26.get(g["id"], {}))
+            if bh is None:
+                continue
+            pre = pregame(tg, check_season, orders.get(g["id"], 0))
+            if (pre.reindex([g["homeTeam"], g["awayTeam"]])["games"] < 3).any():
+                continue
+            oh = our_prob(model, pre, g["homeTeam"], g["awayTeam"], bool(g.get("neutralSite")))
+            gp = None if oh is None else gap(oh, bh)
+            if gp:
+                cands.append((gp[1], gp[0], g, bh))
+        print(f"{check_season} wk {wk}: {len(cands)} candidates; top 3:")
+        for gv, dog, g, bh in sorted(cands, key=lambda c: -c[0])[:3]:
+            res = f"{g['awayPoints']}-{g['homePoints']}" if g.get("completed") else "not played"
+            print(f"   {g['awayTeam']} at {g['homeTeam']}  dog={dog}  DK home {round(100*bh)}%  gap {gv:.2f}  {res}")
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="cfbm")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -93,6 +162,7 @@ def main(argv: list[str] | None = None) -> None:
     b.add_argument("--out", type=Path, default=ROOT / "web" / "public" / "data")
     sub.add_parser("edge-cutoffs", help="Backtest the edge score and print Even/Slight/Big cutoffs")
     sub.add_parser("shootout-backtest", help="Backtest Shootout of the Week (leave one season out)")
+    sub.add_parser("upset-backtest", help="Backtest Upset Watch (leave one season out)")
     args = parser.parse_args(argv)
 
     client = CfbdClient(api_key(), ENGINE / ".cache")
@@ -101,6 +171,9 @@ def main(argv: list[str] | None = None) -> None:
         return
     if args.cmd == "shootout-backtest":
         shootout_backtest(client)
+        return
+    if args.cmd == "upset-backtest":
+        upset_backtest(client)
         return
     t0 = time.time()
     build(client, args.out)

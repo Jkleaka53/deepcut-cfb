@@ -36,6 +36,8 @@ def held_out(frame: pd.DataFrame, tg: pd.DataFrame, keys=KEYS) -> pd.DataFrame:
         won = test["home_win"].to_numpy(int)
         parts.append(pd.DataFrame({
             "season": s,
+            "game_id": test["game_id"].to_numpy(),
+            "lin": lin,
             "score": [to_score(v, m["scale"]["overall"]) for v in lin],
             "favored_won": np.where(lin >= 0, won, 1 - won),
         }))
