@@ -52,6 +52,11 @@ CUES = {
 CUE_SUFFIX = " If {off} does that often, {off}'s offense is winning this matchup; if not, {def}'s defense is."
 WHY = ("One of the {n} stats the model found actually decide games. Since {since}, the team with the better side "
        "of this matchup won {pct}% of the time.")
+# A stat the model trusts can still be near a coin flip on its own (it earns its weight next to the others).
+WHY_WEAK = ("One of the {n} stats the model found actually decide games. On its own it's close to a coin flip "
+            "(since {since}, the team with the better side of this matchup won {pct}% of the time), but next to "
+            "the other stats it adds real weight.")
+WEAK_RATE = 0.55
 
 
 def _val(v) -> float | None:
@@ -100,8 +105,8 @@ def swing_block(model: dict, home: str, away: str, pre: pd.DataFrame, neutral: b
                           "detail": {"meaning": MEANING[k], "format": FORMAT[k],
                                      "offValue": _val(pre.loc[off, f"off_{k}"]), "defAllows": _val(pre.loc[dfn, f"def_{k}"]),
                                      "fbsAvg": _val(pre[f"off_{k}"].mean()),
-                                     "why": WHY.format(n=n_proven, since=since,
-                                                       pct=round(100 * f.get("matchupWinRate", 0.5)))},
+                                     "why": (WHY if f.get("matchupWinRate", 0.5) >= WEAK_RATE else WHY_WEAK).format(
+                                         n=n_proven, since=since, pct=round(100 * f.get("matchupWinRate", 0.5)))},
                           "score": round(f["importance"] * abs(z) * f["volatility"], 4)})
     drivers = sorted(cands, key=lambda c: -c["score"])[:MAX_DRIVERS]
     overall = overall_edge(model, pre, home, away, neutral)

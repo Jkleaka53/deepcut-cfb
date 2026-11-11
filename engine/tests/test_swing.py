@@ -156,3 +156,15 @@ def test_stuff_values_raw():
     d = next(d for d in out["drivers"] if d["key"] == "stuff")
     assert d["detail"]["offValue"] == round(float(p.loc[d["offense"], "off_stuff"]), 4)
     assert d["detail"]["defAllows"] == round(float(p.loc[d["defense"], "def_stuff"]), 4)
+
+
+def test_why_is_honest_when_a_stat_alone_is_near_a_coin_flip():
+    import copy
+    model = copy.deepcopy(MODEL)
+    for f in model["features"].values():
+        f["matchupWinRate"] = 0.52
+    out = swing_block(model, "Oregon", "Michigan", pre(**DRIVER_PRE), neutral=False)
+    d = out["drivers"][0]
+    assert d["detail"]["why"] == ("One of the 4 stats the model found actually decide games. On its own it's close to a "
+                                  "coin flip (since 2015, the team with the better side of this matchup won 52% of the "
+                                  "time), but next to the other stats it adds real weight.")
