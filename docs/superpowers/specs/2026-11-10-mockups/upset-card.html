@@ -1,0 +1,49 @@
+<style>
+  .g{font-family:system-ui,-apple-system,sans-serif;color:#111;background:#fff;border:1px solid #ddd;padding:12px 14px;max-width:340px}
+  .t{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#1a5cff;font-weight:700;margin-bottom:6px}
+  .m{font-size:16px;font-weight:700;margin-bottom:6px}
+  .p{font-size:13px;line-height:1.45;color:#333}
+  .tag{display:inline-block;font-size:11px;border:1px solid #111;padding:1px 6px;margin-right:4px}
+  .odds{display:flex;height:22px;margin:8px 0 2px;font-size:11px;color:#fff;font-weight:600}
+  .odds div{display:flex;align-items:center;padding:0 6px}
+  .src{font-size:11px;color:#777;margin-bottom:8px}
+  .gotw{border:2px solid #111;padding:18px;max-width:340px;font-family:system-ui;margin-bottom:8px;color:#999;font-size:13px}
+</style>
+
+<h2>Upset card: which version?</h2>
+<p class="subtitle">Home page, under Game of the Week. Example game and all numbers are made up.</p>
+
+<div class="cards">
+  <div class="card" data-choice="words" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:12px;background:#fafafa">
+      <div class="gotw">Game of the Week (big card, unchanged)</div>
+      <div class="g">
+        <div class="t">Upset watch</div>
+        <div class="m">Iowa State at Kansas State</div>
+        <div><span class="tag">Iowa State: underdog</span></div>
+        <p class="p" style="margin-top:8px">The pros favor Kansas State, but Iowa State's passing game has a big edge on K-State's secondary (passing downs: 9th vs. 101st). Edge score: Iowa State 4.1.</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A: Words only</h3>
+      <p>Line used behind the scenes. You see "underdog" and our reason. No numbers from the pros.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="espn" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:12px;background:#fafafa">
+      <div class="gotw">Game of the Week (big card, unchanged)</div>
+      <div class="g">
+        <div class="t">Upset watch</div>
+        <div class="m">Iowa State at Kansas State</div>
+        <div class="odds"><div style="width:28%;background:#888">ISU 28%</div><div style="width:72%;background:#111">K-State 72%</div></div>
+        <div class="src">ESPN win odds</div>
+        <p class="p"><b>Why that could be wrong:</b> Iowa State's passing game has a big edge on K-State's secondary (passing downs: 9th vs. 101st). Edge score: Iowa State 4.1.</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B: Show ESPN's odds</h3>
+      <p>ESPN's win % shown and labeled as theirs, then our case for why it could be wrong.</p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,67 @@
+<style>
+  .g{font-family:system-ui,-apple-system,sans-serif;color:#111;background:#fff;border:1px solid #ddd;padding:14px;max-width:360px}
+  .t{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#666;margin-bottom:8px}
+  .big{font-size:20px;font-weight:700}
+  .blue{color:#1a5cff}
+  .bar{position:relative;height:12px;background:#eee;margin:10px 0 4px}
+  .mid{position:absolute;left:50%;top:-3px;bottom:-3px;width:2px;background:#111}
+  .fill{position:absolute;top:0;bottom:0;background:#1a5cff}
+  .ends{display:flex;justify-content:space-between;font-size:12px;color:#555}
+  .row{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:6px 0;border-top:1px solid #eee}
+  .mini{width:120px;height:8px;background:#eee;position:relative}
+  .mini .mid{top:-2px;bottom:-2px}
+  .note{font-size:12px;color:#666;margin-top:6px}
+  .num{font-size:28px;font-weight:700}
+</style>
+
+<h2>How should the edge score look?</h2>
+<p class="subtitle">Example game: Missouri at Ole Miss (week 7). The site called it "Even"; Ole Miss won 31-3. Numbers are made up for illustration.</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Edge meter, 0 to 10</h3>
+      <div class="g">
+        <div class="t">Overall edge</div>
+        <div class="big"><span class="blue">Ole Miss</span> · Slight edge · 3.4</div>
+        <div class="bar"><div class="mid"></div><div class="fill" style="left:50%;width:17%"></div></div>
+        <div class="ends"><span>Missouri</span><span>Even</span><span>Ole Miss</span></div>
+        <div class="note">0-1 Even · 1-5 Slight · 5+ Big</div>
+      </div>
+      <p>One number for how far the matchup leans, and toward whom.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Two team ratings</h3>
+      <div class="g">
+        <div class="t">Matchup rating</div>
+        <div style="display:flex;justify-content:space-around;text-align:center">
+          <div><div class="num">51</div><div>Missouri</div></div>
+          <div><div class="num blue">68</div><div>Ole Miss</div></div>
+        </div>
+        <div class="note" style="text-align:center">Gap 17 · Slight edge Ole Miss</div>
+      </div>
+      <p>Each team gets its own 0-100 rating for this matchup; the gap decides the edge.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Meter plus breakdown</h3>
+      <div class="g">
+        <div class="t">Overall edge</div>
+        <div class="big"><span class="blue">Ole Miss</span> · Slight edge · 3.4</div>
+        <div class="bar"><div class="mid"></div><div class="fill" style="left:50%;width:17%"></div></div>
+        <div class="row"><span>Passing game</span><span class="mini"><span class="mid"></span><span class="fill" style="left:50%;width:30%"></span></span><span>Ole Miss 5.8</span></div>
+        <div class="row"><span>Running game</span><span class="mini"><span class="mid"></span><span class="fill" style="left:42%;width:8%"></span></span><span>Missouri 1.6</span></div>
+        <div class="row"><span>Swing factors</span><span class="mini"><span class="mid"></span><span class="fill" style="left:50%;width:12%"></span></span><span>Ole Miss 2.3</span></div>
+      </div>
+      <p>Same meter, plus where the edge comes from, so "Even" can't hide a big passing edge.</p>
+    </div>
+  </div>
+</div>
