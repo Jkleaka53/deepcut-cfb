@@ -75,3 +75,8 @@ def rankings(client, season: int, live: bool) -> list[dict]:
     for st in ("regular", "postseason"):
         out += client.get("/rankings", {"year": season, "seasonType": st}, cacheable=not live)
     return out
+
+
+def lines(client, season: int, live: bool) -> list[dict]:
+    """Betting lines per game (all providers). Used only for Upset Watch's pros' odds."""
+    return client.get("/lines", {"year": season}, cacheable=not live)
