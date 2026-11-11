@@ -60,6 +60,6 @@ Adopting it changes the swing model, so it moves the live edge scores, swing fac
 ## Adopted (owner: site-wide, 2026-11-10)
 
 Real code (config.OPP_ADJUST = 0.8) reproduces the experiment: weekly pick covered 52.7%, won outright 31.0% vs book 25.9% (129 weeks). PASS.
-2026 wk 11 pick: Michigan at Oregon (DraftKings: Michigan 22%).
+2026 picks (adjusted model, matching the site): wk 10 Georgia State at App State (DraftKings: Georgia State 33%; won 39-23), wk 11 Georgia Southern at Georgia State (Georgia State 36%). (An earlier spot check named Michigan at Oregon; it used unadjusted stats by mistake, fixed in cli.py.)
 
 Edge label lines re-checked on the adjusted model: the backtest suggests Even < 2.5 / Big >= 6.5 (Big 85.3% over 2015-2025), but on 2026's 283 finished games Big at 6.5 was right 100/128 (78%) vs 55/65 (85%) at 8.0. Owner kept 2.0 / 8.0. With 2/8, 2026 labels move little (Even 105 to 115, Slight 331 to 318, Big 101 to 104; favored team flipped in 2 of 537).

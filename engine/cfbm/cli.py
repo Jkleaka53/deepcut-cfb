@@ -93,7 +93,7 @@ def upset_backtest(client, check_season: int = 2026, check_weeks: tuple[int, ...
     from cfbm.edge_backtest import held_out
     from cfbm.export import train_model, training_data
     from cfbm.plays import game_orders
-    from cfbm.swing_data import apply_orders, pregame, team_games
+    from cfbm.swing_data import apply_orders, pregame_adjusted, team_games
     from cfbm.upset import book_prob, fit_spread_scale, gap, our_prob, spread_of
     from cfbm.upset_backtest import covered, join, summary, weekly_picks
 
@@ -142,7 +142,7 @@ def upset_backtest(client, check_season: int = 2026, check_weeks: tuple[int, ...
             bh = book_prob(l26.get(g["id"], {}))
             if bh is None:
                 continue
-            pre = pregame(tg, check_season, orders.get(g["id"], 0))
+            pre = pregame_adjusted(tg, check_season, orders.get(g["id"], 0), w=config.OPP_ADJUST)
             if (pre.reindex([g["homeTeam"], g["awayTeam"]])["games"] < 3).any():
                 continue
             oh = our_prob(model, pre, g["homeTeam"], g["awayTeam"], bool(g.get("neutralSite")))
