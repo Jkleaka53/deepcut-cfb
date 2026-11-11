@@ -6,7 +6,9 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from cfbm.swing_data import KEYS
+from cfbm.swing_data import KEYS, PASS_KEYS, RUN_KEYS
+
+QUANTS = np.linspace(0, 1, 101)
 
 
 def fit_logit(X: np.ndarray, y: np.ndarray, l2: float = 1e-3, iters: int = 50) -> np.ndarray:
@@ -39,16 +41,25 @@ def _volatility(tg: pd.DataFrame, key: str) -> float:
     return round(float(np.mean(ratios)), 4) if ratios else 0.0
 
 
-def train(frame: pd.DataFrame, tg: pd.DataFrame, keys: list[str] = KEYS, resamples: int = 200, seed: int = 7) -> dict:
+def _quantiles(values: np.ndarray) -> list[float]:
+    v = np.abs(values[~np.isnan(values)])
+    return [round(float(x), 6) for x in np.quantile(v, QUANTS)]
+
+
+def train(frame: pd.DataFrame, tg: pd.DataFrame, keys: list[str] = KEYS, resamples: int = 200, seed: int = 7,
+          groups: dict | None = None) -> dict:
     means = {k: float(frame[f"f_{k}"].mean()) for k in keys}
     sds = {k: float(frame[f"f_{k}"].std()) or 1.0 for k in keys}
     X = np.column_stack([np.ones(len(frame)), frame["home"].to_numpy(float)] +
                         [((frame[f"f_{k}"] - means[k]) / sds[k]).to_numpy() for k in keys])
     y = frame["home_win"].to_numpy(float)
     beta = fit_logit(X, y)
-    rng = np.random.default_rng(seed)
-    boots = np.array([fit_logit(X[idx], y[idx]) for idx in (rng.integers(0, len(y), len(y)) for _ in range(resamples))])
-    lo, hi = np.percentile(boots, 2.5, axis=0), np.percentile(boots, 97.5, axis=0)
+    if resamples > 0:
+        rng = np.random.default_rng(seed)
+        boots = np.array([fit_logit(X[idx], y[idx]) for idx in (rng.integers(0, len(y), len(y)) for _ in range(resamples))])
+        lo, hi = np.percentile(boots, 2.5, axis=0), np.percentile(boots, 97.5, axis=0)
+    else:
+        lo = hi = beta
     feats = {}
     for i, k in enumerate(keys, start=2):
         side = pd.concat([frame[f"ha_{k}"], frame[f"aa_{k}"]])
@@ -58,6 +69,26 @@ def train(frame: pd.DataFrame, tg: pd.DataFrame, keys: list[str] = KEYS, resampl
                     "proven": bool(lo[i] > 0), "importance": round(max(0.0, float(beta[i])), 4),
                     "volatility": _volatility(tg, k), "mean": round(means[k], 6), "sd": round(sds[k], 6),
                     "sideMean": round(float(side.mean()), 6), "sideSd": round(float(side.std()) or 1.0, 6)}
+    # How lopsided training games were, so a game's edge can be scored 0-10 by percentile.
+    # Built from the stored (rounded) values so runtime scoring matches exactly.
+    groups = groups if groups is not None else {"pass": PASS_KEYS, "run": RUN_KEYS}
+    intercept, home = round(float(beta[0]), 4), round(float(beta[1]), 4)
+    lin = intercept + home * frame["home"].to_numpy(float)
+    for k in keys:
+        f = feats[k]
+        lin = lin + f["coef"] * (frame[f"f_{k}"].to_numpy(float) - f["mean"]) / f["sd"]
+    scale = {"overall": _quantiles(lin)}
+    for name, gk in groups.items():
+        gk = [k for k in gk if k in keys]
+        sides = []
+        for col in ("ha", "aa"):
+            s = np.zeros(len(frame))
+            for k in gk:
+                f = feats[k]
+                s = s + f["coef"] * (frame[f"{col}_{k}"].to_numpy(float) - f["sideMean"]) / f["sd"]
+            sides.append(s)
+        scale[name] = _quantiles(np.concatenate(sides))
     return {"seasons": sorted(int(s) for s in frame["season"].unique()), "games": int(len(frame)),
-            "home": {"coef": round(float(beta[1]), 4), "lo": round(float(lo[1]), 4), "hi": round(float(hi[1]), 4)},
+            "intercept": intercept, "scale": scale,
+            "home": {"coef": home, "lo": round(float(lo[1]), 4), "hi": round(float(hi[1]), 4)},
             "features": feats}

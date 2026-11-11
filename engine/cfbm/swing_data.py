@@ -20,6 +20,9 @@ FEATURES: list[tuple[str, str, int, str]] = [
     ("line_yards", "lineYards", 1, "Yards the line creates"),
 ]
 KEYS = [k for k, *_ in FEATURES]
+# Stat groups behind the passing and running section edges; sd_sr and explosive count only overall.
+PASS_KEYS = ("pass_ppa", "pass_sr", "pd_sr")
+RUN_KEYS = ("rush_ppa", "rush_sr", "stuff", "line_yards")
 DIRECTION = {k: d for k, _, d, _ in FEATURES}
 MIN_PRIOR = 3
 
