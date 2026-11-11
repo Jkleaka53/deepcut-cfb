@@ -19,3 +19,7 @@ Drives + sum week 10 top 5: Boise State-Colorado State (102), West Virginia-Texa
 
 - Pick in top 3 more often than chance: PASS for every variant (2.3x to 2.65x).
 - WVU-Texas Tech in its week's top 5: FAIL for the plan's model (10th); PASS only for drives + sum (2nd).
+
+## Owner decision (2026-11-10)
+
+Drives per game for pace, rank by combined expected scoring (sum). Both pass bars: 24.6% top-3 hit rate (2.48x chance); WVU-Texas Tech 2nd of 62 in week 10.

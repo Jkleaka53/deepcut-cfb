@@ -1,6 +1,7 @@
-"""Shootout of the Week: the game most likely to be pure offense on both sides. A ridge regression of one
-team's points from that offense against that defense (pregame season-to-date means); a game's score is the
-WEAKER side's prediction, so both offenses must qualify. Predicted points never leave the engine."""
+"""Shootout of the Week: the game most likely to be pure offense. A ridge regression of one team's points from
+that offense against that defense (pregame season-to-date means), with pace measured in drives (possessions,
+not plays: option teams run many plays on few drives). A game's score is the combined expected scoring
+(owner 2026-11-10, after the backtest). Predicted points never leave the engine."""
 
 from __future__ import annotations
 
@@ -14,7 +15,7 @@ from cfbm.plays import game_orders
 from cfbm.swing_data import MIN_PRIOR, _priors, apply_orders, stat_cols
 
 SHOOT_FEATURES = [("ppa", "ppa", 1, "Points added per play"), ("sr", "successRate", 1, "Success rate"),
-                  ("expl", "explosiveness", 1, "Explosiveness"), ("plays", "plays", 1, "Plays per game")]
+                  ("expl", "explosiveness", 1, "Explosiveness"), ("drives", "drives", 1, "Drives per game")]
 SHOOT_COLS = stat_cols(SHOOT_FEATURES)
 X_KEYS = ("x_ppa", "x_sr", "x_expl", "x_pace", "home")
 
@@ -27,7 +28,7 @@ def side_features(pre: pd.DataFrame, off: str, dfn: str, home: int) -> dict[str,
     """One offense against one defense: the offense's average plus what the defense allows."""
     o, d = pre.loc[off], pre.loc[dfn]
     return {"x_ppa": _f(o["off_ppa"]) + _f(d["def_ppa"]), "x_sr": _f(o["off_sr"]) + _f(d["def_sr"]),
-            "x_expl": _f(o["off_expl"]) + _f(d["def_expl"]), "x_pace": _f(o["off_plays"]) + _f(d["def_plays"]),
+            "x_expl": _f(o["off_expl"]) + _f(d["def_expl"]), "x_pace": _f(o["off_drives"]) + _f(d["def_drives"]),
             "home": float(home)}
 
 
@@ -93,12 +94,11 @@ def _sides(model: dict, pre: pd.DataFrame, home: str, away: str, neutral: bool) 
 
 
 def game_score(model: dict, pre: pd.DataFrame, home: str, away: str, neutral: bool) -> float | None:
-    """The weaker offense's predicted points: both sides must score for a shootout. Internal only."""
-    s = _sides(model, pre, home, away, neutral)
-    return None if s is None else min(s)
+    """Combined expected scoring, used only to rank games. Internal only, never exported."""
+    return predicted_total(model, pre, home, away, neutral)
 
 
 def predicted_total(model: dict, pre: pd.DataFrame, home: str, away: str, neutral: bool) -> float | None:
-    """Backtest comparison only; never exported."""
+    """Sum of both sides' predicted points. Never exported."""
     s = _sides(model, pre, home, away, neutral)
     return None if s is None else sum(s)

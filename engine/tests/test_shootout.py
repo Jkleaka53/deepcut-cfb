@@ -7,7 +7,7 @@ from cfbm.swing_data import team_games
 
 
 def _adv(gid, season, week, team, opp, off, dfn):
-    side = lambda v: {"ppa": v[0], "successRate": v[1], "explosiveness": v[2], "plays": v[3],
+    side = lambda v: {"ppa": v[0], "successRate": v[1], "explosiveness": v[2], "drives": v[3],
                       "passingPlays": {"ppa": v[0], "successRate": v[1]}}
     return {"gameId": gid, "season": season, "week": week, "seasonType": "regular", "team": team, "opponent": opp,
             "offense": side(off), "defense": side(dfn)}
@@ -16,19 +16,19 @@ def _adv(gid, season, week, team, opp, off, dfn):
 def test_team_games_default_unchanged():
     cols = list(team_games([]).columns)
     assert cols[:5] == ["game_id", "season", "order", "team", "opponent"]
-    assert "off_pass_ppa" in cols and "off_plays" not in cols
+    assert "off_pass_ppa" in cols and "off_drives" not in cols
 
 
 def test_team_games_with_shoot_features():
     tg = team_games([_adv(1, 2024, 1, "A", "B", (0.1, 0.4, 1.2, 72), (0.0, 0.4, 1.1, 65))], SHOOT_FEATURES)
-    assert tg.loc[0, "off_plays"] == 72 and tg.loc[0, "def_plays"] == 65
+    assert tg.loc[0, "off_drives"] == 72 and tg.loc[0, "def_drives"] == 65
     assert tg.loc[0, "off_ppa"] == pytest.approx(0.1)
 
 
 def test_side_features_sum_offense_and_defense():
     pre = pd.DataFrame({"games": [4, 4], "off_ppa": [0.3, 0.0], "def_ppa": [0.0, 0.1], "off_sr": [0.4, 0.4],
                         "def_sr": [0.4, 0.5], "off_expl": [1.2, 1.0], "def_expl": [1.0, 1.3],
-                        "off_plays": [70, 60], "def_plays": [65, 75]}, index=["A", "B"])
+                        "off_drives": [70, 60], "def_drives": [65, 75]}, index=["A", "B"])
     x = side_features(pre, "A", "B", 1)
     assert set(x) == set(X_KEYS)
     assert x["x_ppa"] == pytest.approx(0.4) and x["x_pace"] == pytest.approx(145) and x["home"] == 1
@@ -79,20 +79,21 @@ HAND = {"means": {k: 0.0 for k in X_KEYS}, "sds": {k: 1.0 for k in X_KEYS},
         "coef": {**{k: 0.0 for k in X_KEYS}, "x_ppa": 10.0}, "intercept": 20.0}
 
 
-def _pre(home_ppa, away_ppa, games=4, plays=60.0):
+def _pre(home_ppa, away_ppa, games=4, drives=60.0):
     return pd.DataFrame({"games": [games, 4], "off_ppa": [home_ppa, away_ppa], "def_ppa": [0.0, 0.0],
                          "off_sr": [0.4, 0.4], "def_sr": [0.4, 0.4], "off_expl": [1.0, 1.0], "def_expl": [1.0, 1.0],
-                         "off_plays": [plays, 60.0], "def_plays": [60.0, 60.0]}, index=["H", "A"])
+                         "off_drives": [drives, 60.0], "def_drives": [60.0, 60.0]}, index=["H", "A"])
 
 
-def test_game_score_is_weaker_side():
+def test_game_score_is_combined_total():
+    """Owner 2026-11-10: rank by combined expected scoring (backtest: WVU-TTU 2nd of its week)."""
     p = _pre(1.0, -0.5)
-    assert game_score(HAND, p, "H", "A", neutral=False) == pytest.approx(15.0)
+    assert game_score(HAND, p, "H", "A", neutral=False) == pytest.approx(45.0)
     assert predicted_total(HAND, p, "H", "A", neutral=False) == pytest.approx(45.0)
 
 
 def test_nan_feature_disqualifies():
-    assert game_score(HAND, _pre(1.0, 0.5, plays=float("nan")), "H", "A", neutral=False) is None
+    assert game_score(HAND, _pre(1.0, 0.5, drives=float("nan")), "H", "A", neutral=False) is None
     assert predict_side(HAND, {**{k: 0.0 for k in X_KEYS}, "x_pace": float("nan")}) is None
 
 
