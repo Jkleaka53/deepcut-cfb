@@ -63,10 +63,3 @@ def test_swing_factors_join_the_score_and_the_why():
     assert "4 swing factors" in why(a)
     assert "swing factor" not in why(b)
 
-
-def test_gotw_uses_row_edge():
-    import copy
-    m = copy.deepcopy(STRONG_EVEN)
-    for sec in m["sections"]:
-        sec["rowEdge"], sec["edge"] = "even", "clear-offense"
-    assert "Neither side has a clear edge on paper." in why(m)

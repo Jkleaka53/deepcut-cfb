@@ -27,11 +27,11 @@ def frame_linear(model: dict, frame: pd.DataFrame, keys=KEYS) -> np.ndarray:
     return lin
 
 
-def held_out(frame: pd.DataFrame, tg: pd.DataFrame, keys=KEYS, groups: dict | None = None) -> pd.DataFrame:
+def held_out(frame: pd.DataFrame, tg: pd.DataFrame, keys=KEYS) -> pd.DataFrame:
     parts = []
     for s in sorted(frame["season"].unique()):
         test = frame[frame["season"] == s]
-        m = train(frame[frame["season"] != s], tg, keys=keys, resamples=0, groups=groups)
+        m = train(frame[frame["season"] != s], tg, keys=keys, resamples=0)
         lin = frame_linear(m, test, keys)
         won = test["home_win"].to_numpy(int)
         parts.append(pd.DataFrame({

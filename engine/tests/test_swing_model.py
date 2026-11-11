@@ -62,26 +62,23 @@ def test_negative_weight_is_never_a_driver():
     assert a["coef"] < 0 and a["proven"] is False and a["importance"] == 0
 
 
-GROUPS = {"pass": ("a",), "run": ("b",)}
-
-
 def test_train_keeps_intercept():
     fr, tg = _synthetic()
-    m = train(fr, tg, keys=["a", "b"], resamples=5, groups=GROUPS)
+    m = train(fr, tg, keys=["a", "b"], resamples=5)
     assert isinstance(m["intercept"], float) and abs(m["intercept"]) < 0.5
 
 
 def test_scale_quantiles_shape():
     fr, tg = _synthetic()
-    m = train(fr, tg, keys=["a", "b"], resamples=5, groups=GROUPS)
-    for name in ("overall", "pass", "run"):
+    m = train(fr, tg, keys=["a", "b"], resamples=5)
+    for name in ("overall",):
         q = m["scale"][name]
         assert len(q) == 101 and q[0] >= 0 and all(x <= y for x, y in zip(q, q[1:]))
 
 
 def test_overall_scale_matches_linear():
     fr, tg = _synthetic()
-    m = train(fr, tg, keys=["a", "b"], resamples=5, groups=GROUPS)
+    m = train(fr, tg, keys=["a", "b"], resamples=5)
     L = m["intercept"] + m["home"]["coef"] * fr["home"]
     for k in ("a", "b"):
         f = m["features"][k]
@@ -91,5 +88,5 @@ def test_overall_scale_matches_linear():
 
 def test_resamples_zero_skips_bootstrap():
     fr, tg = _synthetic()
-    m = train(fr, tg, keys=["a", "b"], resamples=0, groups=GROUPS)
+    m = train(fr, tg, keys=["a", "b"], resamples=0)
     assert m["features"]["a"]["lo"] == m["features"]["a"]["coef"]

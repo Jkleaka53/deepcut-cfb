@@ -6,7 +6,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from cfbm.swing_data import KEYS, PASS_KEYS, RUN_KEYS
+from cfbm.swing_data import KEYS
 
 QUANTS = np.linspace(0, 1, 101)
 
@@ -46,8 +46,7 @@ def _quantiles(values: np.ndarray) -> list[float]:
     return [round(float(x), 6) for x in np.quantile(v, QUANTS)]
 
 
-def train(frame: pd.DataFrame, tg: pd.DataFrame, keys: list[str] = KEYS, resamples: int = 200, seed: int = 7,
-          groups: dict | None = None) -> dict:
+def train(frame: pd.DataFrame, tg: pd.DataFrame, keys: list[str] = KEYS, resamples: int = 200, seed: int = 7) -> dict:
     means = {k: float(frame[f"f_{k}"].mean()) for k in keys}
     sds = {k: float(frame[f"f_{k}"].std()) or 1.0 for k in keys}
     X = np.column_stack([np.ones(len(frame)), frame["home"].to_numpy(float)] +
@@ -71,23 +70,12 @@ def train(frame: pd.DataFrame, tg: pd.DataFrame, keys: list[str] = KEYS, resampl
                     "sideMean": round(float(side.mean()), 6), "sideSd": round(float(side.std()) or 1.0, 6)}
     # How lopsided training games were, so a game's edge can be scored 0-10 by percentile.
     # Built from the stored (rounded) values so runtime scoring matches exactly.
-    groups = groups if groups is not None else {"pass": PASS_KEYS, "run": RUN_KEYS}
     intercept, home = round(float(beta[0]), 4), round(float(beta[1]), 4)
     lin = intercept + home * frame["home"].to_numpy(float)
     for k in keys:
         f = feats[k]
         lin = lin + f["coef"] * (frame[f"f_{k}"].to_numpy(float) - f["mean"]) / f["sd"]
     scale = {"overall": _quantiles(lin)}
-    for name, gk in groups.items():
-        gk = [k for k in gk if k in keys]
-        sides = []
-        for col in ("ha", "aa"):
-            s = np.zeros(len(frame))
-            for k in gk:
-                f = feats[k]
-                s = s + f["coef"] * (frame[f"{col}_{k}"].to_numpy(float) - f["sideMean"]) / f["sd"]
-            sides.append(s)
-        scale[name] = _quantiles(np.concatenate(sides))
     return {"seasons": sorted(int(s) for s in frame["season"].unique()), "games": int(len(frame)),
             "intercept": intercept, "scale": scale,
             "home": {"coef": home, "lo": round(float(lo[1]), 4), "hi": round(float(hi[1]), 4)},

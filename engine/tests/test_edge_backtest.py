@@ -4,9 +4,6 @@ import pandas as pd
 from cfbm.edge_backtest import band_table, held_out, pick_cutoffs
 from tests.test_swing_model import _synthetic
 
-GROUPS = {"pass": ("a",), "run": ("b",)}
-
-
 def _multi():
     fr, tg = _synthetic(n=2000)
     fr["season"] = 2016 + (fr["game_id"] % 4)
@@ -15,7 +12,7 @@ def _multi():
 
 def test_held_out_one_row_per_game():
     fr, tg = _multi()
-    out = held_out(fr, tg, keys=["a", "b"], groups=GROUPS)
+    out = held_out(fr, tg, keys=["a", "b"])
     assert len(out) == len(fr)
     assert out["score"].between(0, 10).all()
     assert set(out["favored_won"].unique()) <= {0, 1}

@@ -10,9 +10,7 @@ import numpy as np
 import pandas as pd
 
 from cfbm import config
-from cfbm.swing_data import KEYS, PASS_KEYS, RUN_KEYS, side_advantage
-
-GROUPS = {"pass": PASS_KEYS, "run": RUN_KEYS}
+from cfbm.swing_data import KEYS, side_advantage
 
 
 def _adv(pre: pd.DataFrame, off: str, dfn: str, k: str) -> float:
@@ -37,19 +35,6 @@ def overall_linear(model: dict, pre: pd.DataFrame, home: str, away: str, neutral
     return model["intercept"] + (0.0 if neutral else model["home"]["coef"]) + sum(terms)
 
 
-def section_linear(model: dict, pre: pd.DataFrame, off: str, dfn: str, keys) -> float | None:
-    """Offense-perspective linear score for one side of the ball (>0 favors the offense)."""
-    if off not in pre.index or dfn not in pre.index:
-        return None
-    terms = []
-    for k in keys:
-        f = model["features"].get(k)
-        a = _adv(pre, off, dfn, k) if f is not None else math.nan
-        if not math.isnan(a):
-            terms.append(f["coef"] * (a - f["sideMean"]) / f["sd"])
-    return sum(terms) if terms else None
-
-
 def to_score(value: float, quantiles: list[float]) -> float:
     return round(float(np.interp(abs(value), quantiles, np.linspace(0, 10, len(quantiles)))), 1)
 
@@ -65,12 +50,3 @@ def overall_edge(model: dict, pre: pd.DataFrame, home: str, away: str, neutral: 
     score = to_score(lin, model["scale"]["overall"])
     b = band(score)
     return {"edge": b, "team": None if b == "even" else (home if lin > 0 else away), "score": score}
-
-
-def section_edge(model: dict, pre: pd.DataFrame, off: str, dfn: str, group: str) -> tuple[str, float] | None:
-    lin = section_linear(model, pre, off, dfn, GROUPS[group])
-    if lin is None:
-        return None
-    score = to_score(lin, model["scale"][group])
-    b = band(score)
-    return ("even" if b == "even" else f"{b}-{'offense' if lin > 0 else 'defense'}"), score

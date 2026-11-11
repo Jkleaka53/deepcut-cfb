@@ -280,7 +280,7 @@ def test_swing_block_with_injected_model(tmp_path):
             "mean": 0.0, "sd": 1.0, "sideMean": 0.0, "sideSd": 0.01}
     model = {"seasons": [2024], "games": 1000, "home": {"coef": 0.3, "lo": 0.1, "hi": 0.5},
              "features": {k: dict(feat) for k in KEYS}, "intercept": 0.0,
-             "scale": {g: [i / 50 for i in range(101)] for g in ("overall", "pass", "run")}}
+             "scale": {g: [i / 50 for i in range(101)] for g in ("overall",)}}
     build(WorldClient(), tmp_path, seasons=(2025,), career_start=2025, now=datetime(2025, 9, 20, tzinfo=timezone.utc),
           weather_fetch=_fake_weather, model=model)
     m = _load(tmp_path / "2025" / "matchups" / "7.json")
@@ -401,7 +401,7 @@ def _model_build(tmp_path, client=None):
             "mean": 0.0, "sd": 1.0, "sideMean": 0.0, "sideSd": 0.01}
     model = {"seasons": [2024], "games": 1000, "home": {"coef": 0.3, "lo": 0.1, "hi": 0.5},
              "features": {k: dict(feat) for k in KEYS}, "intercept": 0.0,
-             "scale": {g: [i / 50 for i in range(101)] for g in ("overall", "pass", "run")}}
+             "scale": {g: [i / 50 for i in range(101)] for g in ("overall",)}}
     build(client or WorldClient(), tmp_path, seasons=(2025,), career_start=2025,
           now=datetime(2025, 9, 20, tzinfo=timezone.utc), weather_fetch=_fake_weather, model=model)
     return tmp_path
@@ -410,7 +410,6 @@ def _model_build(tmp_path, client=None):
 def test_no_gambling_fields_exported(tmp_path, monkeypatch):
     import cfbm.export
     import cfbm.swing
-    monkeypatch.setattr(cfbm.export, "MIN_PRIOR", 1)
     monkeypatch.setattr(cfbm.swing, "MIN_PRIOR", 1)
     out = _model_build(tmp_path, AdvClient())
     docs = [_load(f) for f in (out / "2025" / "matchups").glob("*.json")] + [_load(out / "2025" / "games.json")]
@@ -418,32 +417,30 @@ def test_no_gambling_fields_exported(tmp_path, monkeypatch):
     for doc in docs:
         for k, v, parent in _walk(doc):
             assert k.lower() not in BANNED, k
-            edge_score = k in ("edgeScore", "runEdgeScore") or (k == "score" and ("band" in parent or "team" in parent and "edge" in parent))
+            edge_score = k == "score" and ("band" in parent or ("team" in parent and "edge" in parent))
             if edge_score and isinstance(v, (int, float)):
                 assert 0 <= v <= 10
                 scores += 1
     assert scores > 0
 
 
-def test_section_edges_fall_back_without_model(out):
+def test_section_edges_stay_table_based_with_model(tmp_path, monkeypatch):
+    """Owner 2026-11-10: the passing/running lines keep matching their tables; the edge score
+    drives only the overall meter and the home chip."""
+    import cfbm.export
+    import cfbm.swing
     from cfbm.units import side_edge
-    m = _load(out / "2025" / "matchups" / "7.json")
-    for sec in m["sections"]:
-        rows = [r for u in sec["units"] for r in u["rows"]]
-        assert sec["edgeScore"] is None and sec["edge"] == side_edge(rows) == sec["rowEdge"]
-        assert sec["runEdgeScore"] is None
-
-
-def test_section_edges_fall_back_early(tmp_path):
-    from cfbm.units import side_edge
-    out = _model_build(tmp_path)
-    early = [m for m in (_load(f) for f in (out / "2025" / "matchups").glob("*.json"))
-             if m["swing"] and m["swing"]["overallEdge"] is None]
-    assert early
-    for m in early:
+    monkeypatch.setattr(cfbm.swing, "MIN_PRIOR", 1)
+    out = _model_build(tmp_path, AdvClient())
+    scored = 0
+    for f in (out / "2025" / "matchups").glob("*.json"):
+        m = _load(f)
+        scored += bool(m["swing"] and m["swing"]["overallEdge"])
         for sec in m["sections"]:
-            rows = [r for u in sec["units"] for r in u["rows"]]
-            assert sec["edgeScore"] is None and sec["edge"] == side_edge(rows)
+            assert sec["edge"] == side_edge([r for u in sec["units"] for r in u["rows"]])
+            assert sec["runEdge"] == side_edge([r for u in sec["runUnits"] for r in u["rows"]])
+            assert not {"edgeScore", "runEdgeScore", "rowEdge"} & set(sec)
+    assert scored
 
 
 def test_summary_edge_mirrors_overall(tmp_path):

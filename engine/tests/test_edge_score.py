@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from cfbm.edge_score import band, overall_edge, overall_linear, section_edge, section_linear, to_score
-from cfbm.swing_data import KEYS, PASS_KEYS
+from cfbm.edge_score import band, overall_edge, overall_linear, to_score
+from cfbm.swing_data import KEYS
 
 Q = list(np.linspace(0, 2, 101))
 
@@ -11,7 +11,7 @@ Q = list(np.linspace(0, 2, 101))
 def model(coefs=None):
     coefs = coefs or {"pass_ppa": 1.0}
     return {"intercept": 0.0, "home": {"coef": 0.3},
-            "scale": {"overall": Q, "pass": Q, "run": Q},
+            "scale": {"overall": Q},
             "features": {k: {"coef": coefs.get(k, 0.0), "mean": 0.0, "sd": 1.0, "sideMean": 0.0} for k in KEYS}}
 
 
@@ -59,21 +59,12 @@ def test_neutral_drops_home_field():
     assert overall_linear(model(), p, "Home", "Away", neutral=False) == pytest.approx(0.3)
 
 
-def test_section_edge_is_one_sided():
-    p = pre(Off={"pass_ppa": (0.4, 0.0)}, Def={"pass_ppa": (0.0, 0.2)})
-    e, s = section_edge(model(), p, "Off", "Def", "pass")
-    assert e.endswith("-offense") and s > 0
-    p2 = pre(Off={"pass_ppa": (-0.4, 0.0)}, Def={"pass_ppa": (0.0, -0.2)})
-    e2, _ = section_edge(model(), p2, "Off", "Def", "pass")
-    assert e2.endswith("-defense")
-
-
 def test_nan_feature_skipped():
     m = model({"pass_ppa": 1.0, "pass_sr": 1.0})
-    p = pre(Off={"pass_ppa": (np.nan, 0.0), "pass_sr": (0.5, 0.0)}, Def={})
-    assert section_linear(m, p, "Off", "Def", PASS_KEYS) == pytest.approx(0.5)
-    p2 = pre(Off={k: (np.nan, 0.0) for k in PASS_KEYS}, Def={})
-    assert section_edge(m, p2, "Off", "Def", "pass") is None
+    p = pre(Home={"pass_ppa": (np.nan, 0.0), "pass_sr": (0.5, 0.0)}, Away={})
+    assert overall_linear(m, p, "Home", "Away", neutral=True) == pytest.approx(0.5)
+    p2 = pre(Home={k: (np.nan, 0.0) for k in KEYS}, Away={})
+    assert overall_edge(m, p2, "Home", "Away", neutral=True) is None
 
 
 def test_missing_team_returns_none():

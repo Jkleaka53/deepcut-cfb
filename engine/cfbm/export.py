@@ -28,9 +28,8 @@ from cfbm.skill import SKILL_COLUMNS, skill_games
 from cfbm.watch import watch_list
 from cfbm.backup import backup_block
 from cfbm.storylines import game_facts, storylines
-from cfbm.edge_score import section_edge
 from cfbm.swing import swing_block
-from cfbm.swing_data import MIN_PRIOR, pregame, team_games, training_frame
+from cfbm.swing_data import pregame, team_games, training_frame
 from cfbm.swing_model import train
 
 
@@ -212,18 +211,6 @@ def _pregame(d: _Data, g: dict, order: int) -> pd.DataFrame:
     return pregame(rows, s, order)
 
 
-def _section_edge(model: dict | None, pre: pd.DataFrame | None, off: str, dfn: str, group: str,
-                  rows: list[dict]) -> tuple[str | None, float | None]:
-    """Edge-score label for one side of the ball; the old row-based label when the model or
-    enough pregame games (MIN_PRIOR) aren't there."""
-    if model is not None and pre is not None and all(
-            t in pre.index and pre.loc[t, "games"] >= MIN_PRIOR for t in (off, dfn)):
-        out = section_edge(model, pre, off, dfn, group)
-        if out is not None:
-            return out
-    return side_edge(rows), None
-
-
 def _swing(d: _Data, g: dict, order: int, qbs: dict, model: dict, pre: pd.DataFrame) -> dict:
     s, home, away = g["season"], g["homeTeam"], g["awayTeam"]
     sw = swing_block(model, home, away, pre, bool(g.get("neutralSite")))
@@ -261,12 +248,11 @@ def matchup(d: _Data, g: dict, model: dict | None = None) -> dict:
         sec = _section(d, g, off, dfn, qbs[off], ranked, lookup, order, ranks)
         sec["units"] = unit_tables(off, dfn, prof, ranked)
         rows = [r for u in sec["units"] for r in u["rows"]]
-        sec["rowEdge"] = side_edge(rows)  # Game of the Week keeps reading the row-based label
-        sec["edge"], sec["edgeScore"] = _section_edge(model, pre, off, dfn, "pass", rows)
+        sec["edge"] = side_edge(rows)
         sec["biggestGap"] = biggest_gap(rows)
         sec["runUnits"] = unit_tables(off, dfn, prof, ranked, RUN_TABLES)
         run_rows = [r for u in sec["runUnits"] for r in u["rows"]]
-        sec["runEdge"], sec["runEdgeScore"] = _section_edge(model, pre, off, dfn, "run", run_rows)
+        sec["runEdge"] = side_edge(run_rows)
         sec["runBiggestGap"] = biggest_gap(run_rows)
         sections.append(sec)
     swing = _swing(d, g, order, qbs, model, pre) if model else None
