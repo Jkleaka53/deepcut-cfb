@@ -124,8 +124,9 @@ def test_driver_detail_shape():
         assert set(d["detail"]) == {"meaning", "format", "offValue", "defAllows", "fbsAvg", "why"}
     sd = next(d for d in out["drivers"] if d["key"] == "sd_sr")
     assert "not just the first two plays" in sd["detail"]["meaning"] and sd["detail"]["format"] == "pct"
-    assert sd["detail"]["why"] == ("One of the 4 stats the model found actually decide games. Since 2015, "
-                                   "the team with the better side of this matchup won 64% of the time.")
+    assert sd["detail"]["why"] == ("One of the 4 stats the model found actually decide games. Since 2015, when one "
+                                   "team's offense or defense was ahead in this matchup (this offense against this "
+                                   "defense), that team won 64% of the time.")
 
 
 def test_cue_suffix_names_both_sides():
@@ -166,5 +167,14 @@ def test_why_is_honest_when_a_stat_alone_is_near_a_coin_flip():
     out = swing_block(model, "Oregon", "Michigan", pre(**DRIVER_PRE), neutral=False)
     d = out["drivers"][0]
     assert d["detail"]["why"] == ("One of the 4 stats the model found actually decide games. On its own it's close to a "
-                                  "coin flip (since 2015, the team with the better side of this matchup won 52% of the "
-                                  "time), but next to the other stats it adds real weight.")
+                                  "coin flip (since 2015, when one team's offense or defense was ahead in this matchup, "
+                                  "that team won 52% of the time), but next to the other stats it adds real weight.")
+
+
+def test_stuff_cue_reads_the_right_way():
+    import copy
+    model = copy.deepcopy(MODEL)
+    model["features"]["stuff"].update(proven=True, importance=0.9)
+    p = pre(Oregon=(8, {"stuff": (-0.2, 0.0)}), Michigan=(8, {"stuff": (0.0, -0.2)}))
+    d = next(d for d in swing_block(model, "Oregon", "Michigan", p, neutral=False)["drivers"] if d["key"] == "stuff")
+    assert d["cue"].startswith(f"Watch whether {d['offense']}'s runs get past the line of scrimmage against {d['defense']}.")

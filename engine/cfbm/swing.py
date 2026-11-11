@@ -47,15 +47,15 @@ CUES = {
     "rush_sr": "Watch whether {off}'s runs gain 4 or more yards on 1st down.",
     "explosive": "Watch for {off} plays of 20 or more yards; one or two can decide it.",
     "line_yards": "Watch {off}'s runs between the tackles: 4 or more yards a carry means the line is winning.",
-    "stuff": "Watch how often {def} stops {off}'s runs at or behind the line.",
+    "stuff": "Watch whether {off}'s runs get past the line of scrimmage against {def}.",
 }
 CUE_SUFFIX = " If {off} does that often, {off}'s offense is winning this matchup; if not, {def}'s defense is."
-WHY = ("One of the {n} stats the model found actually decide games. Since {since}, the team with the better side "
-       "of this matchup won {pct}% of the time.")
+WHY = ("One of the {n} stats the model found actually decide games. Since {since}, when one team's offense or "
+       "defense was ahead in this matchup (this offense against this defense), that team won {pct}% of the time.")
 # A stat the model trusts can still be near a coin flip on its own (it earns its weight next to the others).
 WHY_WEAK = ("One of the {n} stats the model found actually decide games. On its own it's close to a coin flip "
-            "(since {since}, the team with the better side of this matchup won {pct}% of the time), but next to "
-            "the other stats it adds real weight.")
+            "(since {since}, when one team's offense or defense was ahead in this matchup, that team won {pct}% "
+            "of the time), but next to the other stats it adds real weight.")
 WEAK_RATE = 0.55
 
 

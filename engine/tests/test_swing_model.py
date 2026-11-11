@@ -97,3 +97,13 @@ def test_matchup_win_rate():
     m = train(fr, tg, keys=["a", "b"], resamples=5)
     assert 0.5 < m["features"]["a"]["matchupWinRate"] <= 1
     assert abs(m["features"]["b"]["matchupWinRate"] - 0.5) < 0.05
+
+
+def test_side_win_rate_counts_each_side_of_the_ball():
+    from cfbm.swing_model import _side_win_rate
+    ha = pd.Series([1.0, 1.0, -1.0, -1.0])
+    aa = pd.Series([-1.0, 1.0, 1.0, -1.0])
+    home_win = pd.Series([1, 1, 0, 0])
+    # 8 sides: home ahead & won, away behind & lost, home ahead & won, away ahead but lost, home behind & lost,
+    # away ahead & won, home behind & lost, away behind but won -> 6 of 8.
+    assert _side_win_rate(ha, aa, 0.0, home_win) == 0.75
