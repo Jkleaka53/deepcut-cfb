@@ -39,6 +39,11 @@ describe("swing reason pulldown", () => {
     for (const s of ["M", "Ole Miss offense", "52.1%", "8th of 134", "Missouri defense allows", "47.0%",
       "96th of 134", "FBS average", "44.0%", "W", cue]) expect(h).toContain(s);
   });
+  it("summary offers show and hide labels", () => {
+    const h = card(base);
+    expect(h).toContain("Show the stats");
+    expect(h).toContain("Hide the stats");
+  });
   it("heading names the favored team", () => {
     expect(card(base)).toContain("Why Ole Miss has the edge");
     expect(card({ ...base, favors: "Missouri" })).toContain("Why Missouri has the edge");

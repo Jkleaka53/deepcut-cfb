@@ -65,7 +65,10 @@ export default function SwingCard({ swing, teams }: { swing: Swing | null | unde
                 <details name="swing" className="swing-item">
                   <summary className="swing-body">
                     <Head d={d} fill={fav?.fill} />
-                    <span className="swing-more">Show the stats <ChevronDown className="icon sm" aria-hidden /></span>
+                    <span className="swing-more">
+                      <span className="when-closed">Show the stats</span><span className="when-open">Hide the stats</span>
+                      <ChevronDown className="icon sm" aria-hidden />
+                    </span>
                   </summary>
                   <Detail d={d} detail={d.detail} />
                 </details>
