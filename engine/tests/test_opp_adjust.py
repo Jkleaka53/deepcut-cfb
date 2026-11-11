@@ -54,3 +54,16 @@ def test_training_and_build_agree():
         if t in pre.index:
             assert pri.loc[(gid, t), "off_x"] == pytest.approx(pre.loc[t, "off_x"])
             assert pri.loc[(gid, t), "prior_games"] == pre.loc[t, "games"]
+
+
+def test_no_stale_results_across_frames():
+    """Review I1: a cache keyed on id(frame) returned an old frame's result for a new one."""
+    import gc
+    for _ in range(50):
+        a = _tg(ROWS)
+        first = pregame_adjusted(a, 2024, 3, COLS, w=1.0).loc["A", "off_x"]
+        del a
+        gc.collect()
+        changed = [r if r[2] != "A" else (r[0], r[1], r[2], r[3], r[4] + 1.0, r[5]) for r in ROWS]
+        b = _tg(changed)
+        assert pregame_adjusted(b, 2024, 3, COLS, w=1.0).loc["A", "off_x"] == pytest.approx(first + 1.0)

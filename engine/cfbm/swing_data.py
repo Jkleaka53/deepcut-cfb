@@ -205,16 +205,10 @@ def adjusted_priors(tg: pd.DataFrame, cols: list[str] | None = None, w: float = 
     return pd.DataFrame(out, columns=["game_id", "team", "prior_games", *cols])
 
 
-_ADJ_CACHE: dict = {}
-
-
 def pregame_adjusted(tg: pd.DataFrame, season: int, before_order: int, cols: list[str] | None = None,
                      w: float = 0.8) -> pd.DataFrame:
     """Opponent-adjusted version of pregame(): per team, adjusted means of games before kickoff."""
     cols = cols or stat_cols()
-    key = (id(tg), len(tg), season, tuple(cols), before_order, w)
-    if key in _ADJ_CACHE:
-        return _ADJ_CACHE[key]
     s = tg[(tg["season"] == season) & (tg["order"] < before_order)]
     rows = {}
     if not s.empty:
@@ -224,7 +218,4 @@ def pregame_adjusted(tg: pd.DataFrame, season: int, before_order: int, cols: lis
             rows[t] = {"games": n, **means}
     out = pd.DataFrame.from_dict(rows, orient="index", columns=["games", *cols])
     out.index.name = "team"
-    if len(_ADJ_CACHE) > 512:
-        _ADJ_CACHE.clear()
-    _ADJ_CACHE[key] = out
     return out

@@ -11,7 +11,10 @@ import numpy as np
 PROVIDER = "DraftKings"
 
 
-def _raw(ml: float) -> float:
+def _raw(ml: float | None) -> float | None:
+    """American odds to a raw chance; anything under 100 in size is not a real moneyline."""
+    if ml is None or abs(ml) < 100:
+        return None
     return 100 / (ml + 100) if ml > 0 else -ml / (-ml + 100)
 
 
@@ -20,10 +23,9 @@ def book_prob(game_lines: dict, provider: str = PROVIDER) -> float | None:
     for line in game_lines.get("lines") or []:
         if line.get("provider") != provider:
             continue
-        h, a = line.get("homeMoneyline"), line.get("awayMoneyline")
-        if h is None or a is None:
+        rh, ra = _raw(line.get("homeMoneyline")), _raw(line.get("awayMoneyline"))
+        if rh is None or ra is None:
             return None
-        rh, ra = _raw(h), _raw(a)
         return rh / (rh + ra)
     return None
 
@@ -87,6 +89,16 @@ def _ord(n: int) -> str:
     return ordinal(int(n))
 
 
+def backs_dog(m: dict, dog: str) -> bool:
+    """A pick needs a reason that argues for the underdog: a swing factor in its favor, or our edge score
+    even or leaning its way. Otherwise "Why that could be wrong" would argue for the favorite."""
+    sw = m.get("swing") or {}
+    if any(x.get("favors") == dog for x in sw.get("drivers") or []):
+        return True
+    e = sw.get("overallEdge") or {}
+    return e.get("edge") == "even" or not e.get("team") or e.get("team") == dog
+
+
 def why_text(m: dict, dog: str, fav: str) -> str:
     """'Why that could be wrong', in words: the underdog's strongest swing factor, then our edge score's view."""
     sw = m.get("swing") or {}
@@ -94,11 +106,11 @@ def why_text(m: dict, dog: str, fav: str) -> str:
     d = next((x for x in sw.get("drivers") or [] if x.get("favors") == dog), None)
     if d:
         if d["offense"] == dog:
-            parts.append(f"{dog} has the edge in {d['label']}: {dog}'s offense ranks {_ord(d['offRank'])} against a "
-                         f"{fav} defense that ranks {_ord(d['defRank'])} of {d['of']}.")
+            parts.append(f"{dog} has the edge in {d['label']}: {dog}'s offense ranks {_ord(d['offRank'])} against "
+                         f"{fav}'s defense, which ranks {_ord(d['defRank'])} of {d['of']}.")
         else:
-            parts.append(f"{dog} has the edge in {d['label']}: {dog}'s defense ranks {_ord(d['defRank'])} against a "
-                         f"{fav} offense that ranks {_ord(d['offRank'])} of {d['of']}.")
+            parts.append(f"{dog} has the edge in {d['label']}: {dog}'s defense ranks {_ord(d['defRank'])} against "
+                         f"{fav}'s offense, which ranks {_ord(d['offRank'])} of {d['of']}.")
     e = sw.get("overallEdge") or {}
     if e.get("edge") == "even" or not e.get("team"):
         parts.append("Our edge score has it even.")

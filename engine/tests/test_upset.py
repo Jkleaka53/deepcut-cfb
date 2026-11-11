@@ -99,18 +99,43 @@ def test_why_text_with_driver():
              "offense": "Kansas State", "defense": "Iowa State"}, EXPL],
            {"edge": "slight", "team": "Kansas State", "score": 3.1})
     assert why_text(m, "Iowa State", "Kansas State") == (
-        "Iowa State has the edge in Big plays: Iowa State's offense ranks 9th against a Kansas State defense "
-        "that ranks 101st of 134. Our edge score has Kansas State by only 3.1 of 10.")
+        "Iowa State has the edge in Big plays: Iowa State's offense ranks 9th against Kansas State's defense, "
+        "which ranks 101st of 134. Our edge score has Kansas State by only 3.1 of 10.")
 
 
 def test_why_text_defense_driver_and_dog_lean():
     d = {**EXPL, "offense": "Kansas State", "defense": "Iowa State", "offRank": 120, "defRank": 12}
     m = _m([d], {"edge": "slight", "team": "Iowa State", "score": 2.4})
     assert why_text(m, "Iowa State", "Kansas State") == (
-        "Iowa State has the edge in Big plays: Iowa State's defense ranks 12th against a Kansas State offense "
-        "that ranks 120th of 134. Our edge score leans Iowa State, 2.4 of 10.")
+        "Iowa State has the edge in Big plays: Iowa State's defense ranks 12th against Kansas State's offense, "
+        "which ranks 120th of 134. Our edge score leans Iowa State, 2.4 of 10.")
 
 
 def test_why_text_without_driver():
     m = _m([{**EXPL, "favors": "Kansas State"}], {"edge": "even", "team": None, "score": 1.2})
     assert why_text(m, "Iowa State", "Kansas State") == "Our edge score has it even."
+
+
+def test_why_text_no_bad_articles():
+    """Review: 'against a Iowa offense' was published. Name the team's unit without an article."""
+    d = {**EXPL, "offense": "Iowa State", "defense": "Iowa"}
+    m = _m([d], {"edge": "even", "team": None, "score": 1.0})
+    assert why_text(m, "Iowa State", "Iowa") == (
+        "Iowa State has the edge in Big plays: Iowa State's offense ranks 9th against Iowa's defense, "
+        "which ranks 101st of 134. Our edge score has it even.")
+
+
+def test_zero_moneyline_is_missing():
+    g = {"lines": [{"provider": "DraftKings", "homeMoneyline": 0, "awayMoneyline": 0}]}
+    assert book_prob(g) is None
+    g = {"lines": [{"provider": "DraftKings", "homeMoneyline": 0, "awayMoneyline": -150}]}
+    assert book_prob(g) is None
+
+
+def test_reason_must_back_the_underdog():
+    """No driver for the dog and our edge score on the favorite: the note would argue for the favorite."""
+    from cfbm.upset import backs_dog
+    fav_only = _m([{**EXPL, "favors": "Kansas State"}], {"edge": "slight", "team": "Kansas State", "score": 2.5})
+    assert not backs_dog(fav_only, "Iowa State")
+    assert backs_dog(_m([], {"edge": "even", "team": None, "score": 1.0}), "Iowa State")
+    assert backs_dog(_m([EXPL], {"edge": "slight", "team": "Kansas State", "score": 2.5}), "Iowa State")

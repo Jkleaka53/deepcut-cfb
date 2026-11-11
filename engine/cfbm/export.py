@@ -134,6 +134,7 @@ class _Data:
                            for s in seasons_all}
         self._asof: dict = {}
         self._adv_fbs: dict[int, pd.DataFrame] = {}
+        self._pre_adj: dict[tuple[int, int], pd.DataFrame] = {}
         self.polls: dict[int, list[dict]] = {}
 
     def adv_fbs(self, season: int) -> pd.DataFrame:
@@ -230,7 +231,10 @@ def train_model(client, seasons) -> dict | None:
 def _pregame(d: _Data, g: dict, order: int) -> pd.DataFrame:
     """Opponent-adjusted pregame stats: what the edge/swing model reads."""
     s = g["season"]
-    return pregame_adjusted(d.adv_fbs(s), s, order, w=config.OPP_ADJUST)
+    key = (s, order)
+    if key not in d._pre_adj:  # many games share a kickoff order; the cache lives and dies with this build
+        d._pre_adj[key] = pregame_adjusted(d.adv_fbs(s), s, order, w=config.OPP_ADJUST)
+    return d._pre_adj[key]
 
 
 def _pregame_raw(d: _Data, g: dict, order: int) -> pd.DataFrame:
@@ -283,6 +287,8 @@ def upset_picks(d: _Data, built: list[dict], model: dict, lines: dict[int, dict]
         if gp is None:
             continue
         dog, fav = (home, away) if gp[0] == "home" else (away, home)
+        if not upset.backs_dog(m, dog):
+            continue
         cands.append((g, gp[1], {"why": upset.why_text(m, dog, fav), "odds": upset.odds_block(bh)}))
     skip: dict[str, set[int]] = {}
     for picks in (gotw, shoot):
