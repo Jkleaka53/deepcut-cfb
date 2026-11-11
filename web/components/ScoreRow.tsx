@@ -72,6 +72,7 @@ export default function ScoreRow({ game: g, teams, favorites, onToggle, watched 
           const text = t ? edgeChipText(g.edge, teams[t]?.abbr ?? t) : null;
           return text && <span className="badge-plain">{text}</span>;
         })()}
+        {g.shootoutWatch && <span className="badge-plain">Shootout watch</span>}
       </div>
     </>
   );

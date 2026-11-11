@@ -35,6 +35,8 @@ export interface GameSummary {
   keyFactor?: { label: string; favors: string } | null;
   /** Overall edge score for the home chip; null when even or unscored. */
   edge?: { band: "even" | "slight" | "clear"; team: string | null; score: number } | null;
+  /** Among the week\'s next-highest Shootout of the Week games. */
+  shootoutWatch?: boolean;
 }
 
 export type WeatherIcon = "clear" | "partly-cloudy" | "cloudy" | "fog" | "drizzle" | "rain" | "snow" | "storm";

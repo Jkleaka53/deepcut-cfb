@@ -29,3 +29,11 @@ export async function loadGotw(season: number): Promise<GotwPicks> {
     return {};
   }
 }
+
+export async function loadShootout(season: number): Promise<GotwPicks> {
+  try {
+    return await getJson<GotwPicks>(`/data/${season}/shootout.json`);
+  } catch {
+    return {};
+  }
+}
