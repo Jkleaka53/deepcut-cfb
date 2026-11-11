@@ -58,3 +58,43 @@ def test_training_rows_two_sides_and_priors_only():
     # A's prior off_ppa = mean(0.1, 0.2, 0.3) = 0.2; E's prior def_ppa = 0 -> x_ppa 0.2 (week 4 not included)
     assert home["x_ppa"] == pytest.approx(0.2)
     assert not (rows["game_id"] == 1).any()
+
+
+from cfbm.shootout import fit, game_score, predict_side, predicted_total  # noqa: E402
+
+
+def test_fit_recovers_signal():
+    rng = np.random.default_rng(2)
+    n = 6000
+    df = pd.DataFrame({k: rng.normal(0, 1, n) for k in X_KEYS})
+    df["home"] = rng.integers(0, 2, n).astype(float)
+    df["points"] = 28 + 6 * df["x_ppa"] + rng.normal(0, 3, n)
+    m = fit(df)
+    assert m["coef"]["x_ppa"] == pytest.approx(6, abs=0.5)
+    assert abs(m["coef"]["x_sr"]) < 0.5
+    assert m["intercept"] == pytest.approx(28, abs=0.5)
+
+
+HAND = {"means": {k: 0.0 for k in X_KEYS}, "sds": {k: 1.0 for k in X_KEYS},
+        "coef": {**{k: 0.0 for k in X_KEYS}, "x_ppa": 10.0}, "intercept": 20.0}
+
+
+def _pre(home_ppa, away_ppa, games=4, plays=60.0):
+    return pd.DataFrame({"games": [games, 4], "off_ppa": [home_ppa, away_ppa], "def_ppa": [0.0, 0.0],
+                         "off_sr": [0.4, 0.4], "def_sr": [0.4, 0.4], "off_expl": [1.0, 1.0], "def_expl": [1.0, 1.0],
+                         "off_plays": [plays, 60.0], "def_plays": [60.0, 60.0]}, index=["H", "A"])
+
+
+def test_game_score_is_weaker_side():
+    p = _pre(1.0, -0.5)
+    assert game_score(HAND, p, "H", "A", neutral=False) == pytest.approx(15.0)
+    assert predicted_total(HAND, p, "H", "A", neutral=False) == pytest.approx(45.0)
+
+
+def test_nan_feature_disqualifies():
+    assert game_score(HAND, _pre(1.0, 0.5, plays=float("nan")), "H", "A", neutral=False) is None
+    assert predict_side(HAND, {**{k: 0.0 for k in X_KEYS}, "x_pace": float("nan")}) is None
+
+
+def test_early_team_disqualifies():
+    assert game_score(HAND, _pre(1.0, 0.5, games=2), "H", "A", neutral=False) is None
