@@ -108,3 +108,23 @@ def test_apply_orders_remaps_by_game():
     tg, games = _post_world()
     out = apply_orders(tg, {200: 101, 100: 102})
     assert set(out.loc[out["game_id"] == 100, "order"]) == {102} and set(out.loc[out["game_id"] == 1, "order"]) == set(tg.loc[tg["game_id"] == 1, "order"])
+
+
+def test_training_frame_reads_opponent_adjusted_stats(monkeypatch):
+    """Owner 2026-11-10: the model trains on opponent-adjusted stats (config.OPP_ADJUST)."""
+    from cfbm import config
+    from cfbm.swing_data import side_advantage
+    tg, games = _season()
+    fbs = {2019: {"A", "B", "C", "D"}}
+    monkeypatch.setattr(config, "OPP_ADJUST", 0.0)
+    raw = training_frame(tg, games, fbs).set_index("game_id")
+    monkeypatch.setattr(config, "OPP_ADJUST", 1.0)
+    adj = training_frame(tg, games, fbs).set_index("game_id")
+    assert set(raw.index) == set(adj.index)
+    assert any(abs(raw.loc[g, "ha_pass_ppa"] - adj.loc[g, "ha_pass_ppa"]) > 1e-9 for g in raw.index)
+    from cfbm.swing_data import adjusted_priors, apply_orders
+    from cfbm.plays import game_orders
+    pri = adjusted_priors(apply_orders(tg, game_orders(list(games.values()))), w=1.0).set_index(["game_id", "team"])
+    g = games[9]
+    H, A = pri.loc[(9, g["homeTeam"])], pri.loc[(9, g["awayTeam"])]
+    assert adj.loc[9, "ha_pass_ppa"] == pytest.approx(side_advantage(H["off_pass_ppa"], A["def_pass_ppa"], "pass_ppa"))

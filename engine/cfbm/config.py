@@ -55,3 +55,9 @@ AVAILABILITY_REPORTS = {
     "Big 12": {"url": "https://big12sports.com/sports/2025/8/21/availability-reporting.aspx", "when": _P4_WHEN},
     "Big Ten": {"url": None, "when": _P4_WHEN},  # publishes reports; page URL not yet confirmed
 }
+
+# Opponent adjustment for the edge/swing model's pregame stats (owner 2026-11-10). Each team's stat is
+# corrected by this share of how far its opponents' averages sit from the league's, using only games
+# before kickoff. 0.8 had the best held-out log loss (0.5626 vs 0.5764 raw) over 2015-2025; see
+# docs/superpowers/plans/2026-11-10-upset-report.md.
+OPP_ADJUST = 0.8

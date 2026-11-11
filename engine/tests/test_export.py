@@ -492,3 +492,28 @@ def test_shootout_file_empty_without_model(tmp_path):
           shootout_model={})
     assert _load(tmp_path / "2025" / "shootout.json") == {}
     assert all(g["shootoutWatch"] is False for g in _load(tmp_path / "2025" / "games.json"))
+
+
+def test_pulldowns_show_real_stats_while_model_reads_adjusted(tmp_path, monkeypatch):
+    import cfbm.swing
+    from cfbm import config
+    monkeypatch.setattr(cfbm.swing, "MIN_PRIOR", 1)
+
+    def run(w, sub):
+        monkeypatch.setattr(config, "OPP_ADJUST", w)
+        out = _model_build(tmp_path / sub, AdvClient())
+        ms = {}
+        for f in (out / "2025" / "matchups").glob("*.json"):
+            m = _load(f)
+            ms[m["game"]["id"]] = m["swing"]
+        return ms
+
+    raw, adj = run(0.0, "raw"), run(0.8, "adj")
+    shown_raw = {(gid, d["key"], d["offense"]): d["detail"]["offValue"]
+                 for gid, sw in raw.items() if sw for d in sw["drivers"]}
+    shown_adj = {(gid, d["key"], d["offense"]): d["detail"]["offValue"]
+                 for gid, sw in adj.items() if sw for d in sw["drivers"]}
+    common = set(shown_raw) & set(shown_adj)
+    assert common and all(shown_raw[k] == shown_adj[k] for k in common)
+    scores = lambda ms: {g: (sw.get("overallEdge") or {}).get("score") for g, sw in ms.items() if sw}  # noqa: E731
+    assert scores(raw) != scores(adj)

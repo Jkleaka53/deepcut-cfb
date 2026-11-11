@@ -72,14 +72,18 @@ def _pct_rank(series: pd.Series, team: str, direction: int) -> tuple[int, float]
     return rank, (n - rank) / (n - 1) * 100 if n > 1 else 50.0
 
 
-def swing_block(model: dict, home: str, away: str, pre: pd.DataFrame, neutral: bool) -> dict:
+def swing_block(model: dict, home: str, away: str, pre: pd.DataFrame, neutral: bool,
+                raw: pd.DataFrame | None = None) -> dict:
+    """pre = what the model reads (opponent-adjusted at build time); raw = real season stats, used for the
+    ranks, the favored team and the numbers shown in the pulldown (defaults to pre)."""
+    raw = pre if raw is None else raw
     feats = model["features"]
     short = [t for t in (away, home) if t not in pre.index or pre.loc[t, "games"] < MIN_PRIOR]
     if short:
         return {"drivers": [], "overallEdge": None, "keyRows": {home: [], away: []},
                 "note": f"Too early in the season: {' and '.join(short)} {'has' if len(short) == 1 else 'have'} "
                         f"fewer than {MIN_PRIOR} games against FBS teams."}
-    n = len(pre)
+    n = len(raw)
     cands = []
     n_proven = sum(1 for f in feats.values() if f["proven"])
     since = min(model.get("seasons") or [2015])
@@ -90,7 +94,7 @@ def swing_block(model: dict, home: str, away: str, pre: pd.DataFrame, neutral: b
             d = DIRECTION[k]
             adv = side_advantage(pre.loc[off, f"off_{k}"], pre.loc[dfn, f"def_{k}"], k)
             z = (adv - f["sideMean"]) / f["sideSd"]
-            o, df = _pct_rank(pre[f"off_{k}"], off, d), _pct_rank(pre[f"def_{k}"], dfn, -d)
+            o, df = _pct_rank(raw[f"off_{k}"], off, d), _pct_rank(raw[f"def_{k}"], dfn, -d)
             if o is None or df is None or pd.isna(adv):
                 continue
             (off_rank, off_pct), (def_rank, def_pct) = o, df
@@ -103,8 +107,8 @@ def swing_block(model: dict, home: str, away: str, pre: pd.DataFrame, neutral: b
                           "favors": off if gap > 0 else dfn, "offRank": off_rank, "defRank": def_rank, "of": n,
                           "cue": (CUES[k] + CUE_SUFFIX).format(off=off, **{"def": dfn}),
                           "detail": {"meaning": MEANING[k], "format": FORMAT[k],
-                                     "offValue": _val(pre.loc[off, f"off_{k}"]), "defAllows": _val(pre.loc[dfn, f"def_{k}"]),
-                                     "fbsAvg": _val(pre[f"off_{k}"].mean()),
+                                     "offValue": _val(raw.loc[off, f"off_{k}"]), "defAllows": _val(raw.loc[dfn, f"def_{k}"]),
+                                     "fbsAvg": _val(raw[f"off_{k}"].mean()),
                                      "why": (WHY if f.get("matchupWinRate", 0.5) >= WEAK_RATE else WHY_WEAK).format(
                                          n=n_proven, since=since, pct=round(100 * f.get("matchupWinRate", 0.5)))},
                           "score": round(f["importance"] * abs(z) * f["volatility"], 4)})

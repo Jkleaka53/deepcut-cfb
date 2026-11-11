@@ -31,7 +31,7 @@ from cfbm.storylines import game_facts, storylines
 from cfbm import shootout
 from cfbm.shootout import SHOOT_COLS, SHOOT_FEATURES
 from cfbm.swing import swing_block
-from cfbm.swing_data import pregame, team_games, training_frame
+from cfbm.swing_data import pregame, pregame_adjusted, team_games, training_frame
 from cfbm.swing_model import train
 
 
@@ -133,7 +133,15 @@ class _Data:
         self.full_tiers = {s: assign_tiers(season_profile(self.tg, s, None, self.havoc.get(s)), self.fbs[s])
                            for s in seasons_all}
         self._asof: dict = {}
+        self._adv_fbs: dict[int, pd.DataFrame] = {}
         self.polls: dict[int, list[dict]] = {}
+
+    def adv_fbs(self, season: int) -> pd.DataFrame:
+        """FBS-vs-FBS advanced-stat rows, cached per season so the opponent-adjustment cache can hit."""
+        if season not in self._adv_fbs:
+            fbs = self.fbs[season]
+            self._adv_fbs[season] = self.adv[self.adv["team"].isin(fbs) & self.adv["opponent"].isin(fbs)]
+        return self._adv_fbs[season]
 
     def ranks_for(self, g: dict) -> dict[str, int]:
         return ap_poll_for(self.polls.get(g["season"], []), g["seasonType"], g["week"])
@@ -220,10 +228,15 @@ def train_model(client, seasons) -> dict | None:
 
 
 def _pregame(d: _Data, g: dict, order: int) -> pd.DataFrame:
+    """Opponent-adjusted pregame stats: what the edge/swing model reads."""
     s = g["season"]
-    fbs = d.fbs[s]
-    rows = d.adv[d.adv["team"].isin(fbs) & d.adv["opponent"].isin(fbs)]
-    return pregame(rows, s, order)
+    return pregame_adjusted(d.adv_fbs(s), s, order, w=config.OPP_ADJUST)
+
+
+def _pregame_raw(d: _Data, g: dict, order: int) -> pd.DataFrame:
+    """Real season-to-date stats: what the swing pulldowns show."""
+    s = g["season"]
+    return pregame(d.adv_fbs(s), s, order)
 
 
 def _shoot_pregame(d: _Data, g: dict, order: int) -> pd.DataFrame:
@@ -256,7 +269,7 @@ def train_shootout(client, seasons) -> dict | None:
 
 def _swing(d: _Data, g: dict, order: int, qbs: dict, model: dict, pre: pd.DataFrame) -> dict:
     s, home, away = g["season"], g["homeTeam"], g["awayTeam"]
-    sw = swing_block(model, home, away, pre, bool(g.get("neutralSite")))
+    sw = swing_block(model, home, away, pre, bool(g.get("neutralSite")), raw=_pregame_raw(d, g, order))
     facts, prev = {}, {}
     for t in (away, home):
         q = qbs.get(t)

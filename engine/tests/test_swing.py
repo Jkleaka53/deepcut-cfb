@@ -1,5 +1,6 @@
 import pandas as pd
 
+from cfbm.edge_score import overall_edge
 from cfbm.swing import swing_block
 from cfbm.swing_data import KEYS
 
@@ -178,3 +179,18 @@ def test_stuff_cue_reads_the_right_way():
     p = pre(Oregon=(8, {"stuff": (-0.2, 0.0)}), Michigan=(8, {"stuff": (0.0, -0.2)}))
     d = next(d for d in swing_block(model, "Oregon", "Michigan", p, neutral=False)["drivers"] if d["key"] == "stuff")
     assert d["cue"].startswith(f"Watch whether {d['offense']}'s runs get past the line of scrimmage against {d['defense']}.")
+
+
+def test_model_uses_adjusted_display_uses_real_stats():
+    """Owner 2026-11-10: the model reads opponent-adjusted stats; the pulldown tables and ranks show real ones."""
+    real = pre(Oregon=(8, {"pass_ppa": (0.30, -0.10), "sd_sr": (0.10, -0.05)}),
+               Michigan=(8, {"pass_ppa": (0.0, 0.25), "sd_sr": (0.0, 0.10)}))
+    adj = real.copy()
+    adj.loc["Oregon", "off_pass_ppa"] = 0.05  # Oregon's passing numbers came against weak defenses
+    a = swing_block(MODEL, "Oregon", "Michigan", adj, neutral=False, raw=real)
+    r = swing_block(MODEL, "Oregon", "Michigan", real, neutral=False)
+    pass_a = next(d for d in a["drivers"] if d["key"] == "pass_ppa" and d["offense"] == "Oregon")
+    pass_r = next(d for d in r["drivers"] if d["key"] == "pass_ppa" and d["offense"] == "Oregon")
+    assert pass_a["detail"]["offValue"] == 0.3 and pass_a["offRank"] == pass_r["offRank"]
+    assert pass_a["score"] < pass_r["score"]  # smaller adjusted gap, smaller swing
+    assert a["overallEdge"] == overall_edge(MODEL, adj, "Oregon", "Michigan", False)
