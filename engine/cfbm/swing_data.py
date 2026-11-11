@@ -35,36 +35,38 @@ def _get(obj: dict, path: str):
         return np.nan
 
 
-def team_games(adv: list[dict]) -> pd.DataFrame:
+def team_games(adv: list[dict], features: list[tuple] = FEATURES) -> pd.DataFrame:
     rows = []
     for r in adv:
         row = {"game_id": r["gameId"], "season": r["season"], "order": order_key(r.get("seasonType", "regular"), r["week"]),
                "team": r["team"], "opponent": r["opponent"]}
-        for k, path, _, _ in FEATURES:
+        for k, path, _, _ in features:
             row[f"off_{k}"] = _get(r.get("offense") or {}, path)
             row[f"def_{k}"] = _get(r.get("defense") or {}, path)
         rows.append(row)
-    cols = ["game_id", "season", "order", "team", "opponent"] + [f"{s}_{k}" for k in KEYS for s in ("off", "def")]
-    return pd.DataFrame(rows, columns=cols)
+    return pd.DataFrame(rows, columns=["game_id", "season", "order", "team", "opponent"] + stat_cols(features))
 
 
-def _stat_cols() -> list[str]:
-    return [f"{s}_{k}" for k in KEYS for s in ("off", "def")]
+def stat_cols(features: list[tuple] = FEATURES) -> list[str]:
+    return [f"{s}_{k}" for k, *_ in features for s in ("off", "def")]
 
 
-def pregame(tg: pd.DataFrame, season: int, before_order: int) -> pd.DataFrame:
+_stat_cols = stat_cols
+
+
+def pregame(tg: pd.DataFrame, season: int, before_order: int, cols: list[str] | None = None) -> pd.DataFrame:
     """Season-to-date means per team from games before kickoff."""
     rows = tg[(tg["season"] == season) & (tg["order"] < before_order)]
-    out = rows.groupby("team")[_stat_cols()].mean()
+    out = rows.groupby("team")[cols or stat_cols()].mean()
     out.insert(0, "games", rows.groupby("team").size())
     return out
 
 
-def _priors(tg: pd.DataFrame) -> pd.DataFrame:
+def _priors(tg: pd.DataFrame, cols: list[str] | None = None) -> pd.DataFrame:
     """Per team-game: mean of that team's earlier games this season, and how many there were."""
     t = tg.sort_values(["season", "team", "order", "game_id"]).copy()
     g = t.groupby(["season", "team"])
-    cols = _stat_cols()
+    cols = cols or stat_cols()
     csum = g[cols].cumsum() - t[cols].fillna(0)
     cnt = g.cumcount()
     out = t[["game_id", "team"]].copy()
