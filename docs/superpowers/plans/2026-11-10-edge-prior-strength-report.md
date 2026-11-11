@@ -93,3 +93,30 @@ Control: every underdog at or under 45% covers 49.4%.
 2026 at 2.0 / 8.0, split: early games Even 40 (57.5%), Slight 137 (79.6%), Big 47 (93.6%); weeks 5+ Even 66 (45.5%), Slight 218 (69.7%), Big 54 (85.2%).
 
 The suggestion would label 45% of all games Big. At 2.0 / 8.0 the three labels separate more cleanly than they do today (current model, held-out: Even 53.5%, Slight 69.1%, Big 85.3%).
+
+## Gate 2 and 3 answers
+
+Owner (2026-11-10): Upset Watch stays on the nine-stat model; cutoffs stay 2.0 / 8.0.
+
+## Rebuild: 2026 before and after
+
+Local build on the edge model, 11 CFBD calls. 562 finished FBS-vs-FBS games.
+
+| Label | Before | After | Before: favored won | After: favored won |
+|---|---|---|---|---|
+| Even or no score | 295 (71 Even + 224 unscored) | 106 | | 50% |
+| Slight | 202 | 355 | 66% | 74% |
+| Big | 65 | 101 | 85% | 89% |
+
+- Weeks 1 to 4 (215 games that had no score): 37 Even, 131 Slight, 46 Big; one game went Big to Slight.
+- Later weeks: 307 labels unchanged; Slight to Even 55, Even to Slight 71, Slight to Big 25, Big to Slight 34, Even to Big 1.
+- Swing-factor drivers: unchanged in all 761 matchups with a swing card. Home-page key factors: 0 changed.
+- Shootout of the Week: 0 of 10 weeks changed. Upset Watch: 0 of 9 weeks changed.
+- Game of the Week changed in 6 of 14 weeks, because its closeness term reads the edge score:
+  - Week 5: Alabama at Mississippi State became Florida at Missouri
+  - Week 6: UCLA at Oregon became Georgia at Alabama
+  - Week 7: Notre Dame at BYU became Missouri at Ole Miss
+  - Week 8: Houston at Utah became Ole Miss at Texas
+  - Week 11 (current): #2 Utah at #22 Arizona became #11 Wake Forest at #25 SMU (edge 0.5 vs Utah-Arizona 1.5; Wake-SMU was 2.4 before)
+  - Week 12: #1 Georgia at #20 South Carolina became #24 LSU at #9 Tennessee (edge 0.5; Georgia's edge went 3.7 to 6.6)
+- Preview check: a week 1 game page (North Carolina vs TCU) shows "TCU · Slight edge · 4.8" with the meter and the "fewer than 3 games" swing note; week 1 home chips show edge labels; no mention of odds outside Upset Watch's DraftKings bar. Web tests 213 passed, static build clean.
