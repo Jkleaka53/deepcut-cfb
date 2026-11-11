@@ -101,7 +101,8 @@ def backs_dog(m: dict, dog: str) -> bool:
 
 
 def why_text(m: dict, dog: str, fav: str) -> str:
-    """'Why that could be wrong', in words: the underdog's strongest swing factor, then our edge score's view."""
+    """'Why that could be wrong', in words: the underdog's strongest swing factor, then our edge score's view
+    when it is even or leans the underdog."""
     sw = m.get("swing") or {}
     parts = []
     d = next((x for x in sw.get("drivers") or [] if x.get("favors") == dog), None)
@@ -117,10 +118,8 @@ def why_text(m: dict, dog: str, fav: str) -> str:
         parts.append("Our edge score has it even.")
     elif e["team"] == dog:
         parts.append(f"Our edge score leans {dog}, {e['score']} of 10.")
-    elif e.get("edge") == "slight":
-        parts.append(f"Our edge score has {fav} by only {e['score']} of 10.")
-    else:
-        parts.append(f"Our edge score has {fav} by {e['score']} of 10.")
+    # When the edge score favors the favorite, say nothing about it: the pick comes from the upset model
+    # (nine stats), the edge score from the edge model, and the two can disagree (owner 2026-11-10).
     return " ".join(parts)
 
 

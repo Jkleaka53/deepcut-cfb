@@ -100,7 +100,15 @@ def test_why_text_with_driver():
            {"edge": "slight", "team": "Kansas State", "score": 3.1})
     assert why_text(m, "Iowa State", "Kansas State") == (
         "Iowa State has the edge in Big plays: Iowa State's offense ranks 9th against Kansas State's defense, "
-        "which ranks 101st of 134. Our edge score has Kansas State by only 3.1 of 10.")
+        "which ranks 101st of 134.")
+
+
+def test_why_text_never_quotes_an_edge_score_that_favors_the_favorite():
+    """Owner 2026-11-10: the upset model makes the upset call; the edge score (a different model) is only
+    quoted when it is even or leans the underdog, whatever its size."""
+    for edge in ({"edge": "slight", "team": "Kansas State", "score": 3.1}, {"edge": "clear", "team": "Kansas State", "score": 9.0}):
+        text = why_text(_m([EXPL], edge), "Iowa State", "Kansas State")
+        assert "edge score" not in text and text.startswith("Iowa State has the edge in Big plays")
 
 
 def test_why_text_defense_driver_and_dog_lean():
