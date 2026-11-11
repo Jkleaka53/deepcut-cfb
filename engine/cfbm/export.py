@@ -358,8 +358,6 @@ def build(client, out_dir: Path, seasons=config.DISPLAY_SEASONS, now: datetime |
     d = _Data(client, seasons_all, live)
     if model is None:
         model = train_model(client, train_seasons)
-    if model is not None:
-        _write(out_dir / "model.json", model)
     now = now or datetime.now(timezone.utc)
     fetch_json = weather_fetch or http_fetch
     calls: dict = {}

@@ -1,6 +1,6 @@
 """Edge score: how lopsided a matchup is, 0 to 10, from the swing model's nine pregame stats plus
-home field. The number is a percentile against training games (2015-2025), never a win %, so it
-cannot be read back as odds. Labels (Even / Slight / Big) come from backtested cutoffs."""
+home field. The number is a percentile against training games (2015-2025), never a win %. The
+model itself is never published (export.py), so a score can't be read back as odds. Labels (Even / Slight / Big) come from backtested cutoffs."""
 
 from __future__ import annotations
 

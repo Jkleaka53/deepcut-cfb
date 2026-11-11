@@ -292,7 +292,9 @@ def test_swing_block_with_injected_model(tmp_path):
     games = _load(tmp_path / "2025" / "games.json")
     g7 = next(g for g in games if g["id"] == 7)
     assert g7["keyFactor"] is None or set(g7["keyFactor"]) == {"label", "favors"}
-    assert _load(tmp_path / "model.json")["games"] == 1000
+    # The model (coefficients, intercept, score quantiles) would let anyone turn an edge score back into
+    # our own win %, so it never reaches the published data.
+    assert not (tmp_path / "model.json").exists()
 
 
 def test_no_model_means_no_swing(out):
