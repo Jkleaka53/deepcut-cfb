@@ -1,5 +1,5 @@
 "use client";
-import { chipText } from "@/lib/swing";
+import { chipText, edgeChipText } from "@/lib/swing";
 
 import Link from "next/link";
 import { Bell, Star } from "lucide-react";
@@ -66,6 +66,11 @@ export default function ScoreRow({ game: g, teams, favorites, onToggle, watched 
           const fav = g.keyFactor?.favors ?? g.gap?.favors;
           const text = fav ? chipText(g, teams[fav]?.abbr ?? fav) : null;
           return text && <span className="badge-accent">{text}</span>;
+        })()}
+        {(() => {
+          const t = g.edge?.team;
+          const text = t ? edgeChipText(g.edge, teams[t]?.abbr ?? t) : null;
+          return text && <span className="badge-plain">{text}</span>;
         })()}
       </div>
     </>

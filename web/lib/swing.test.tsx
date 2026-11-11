@@ -64,6 +64,6 @@ describe("badges, chip, overall edge", () => {
     expect(overallText({ edge: "clear", team: "Georgia" })).toBe("Overall: Big edge Georgia");
     expect(overallText({ edge: "even", team: null })).toBe("Overall: Even");
     expect(overallText(null)).toBeNull();
-    expect(html(<EdgeCard sections={[]} teams={{}} overall={{ edge: "slight", team: "Georgia" }} />)).toContain("Overall: Slight edge Georgia");
+    expect(html(<EdgeCard sections={[]} teams={{}} overall={{ edge: "slight", team: "Georgia" }} home="Georgia" away="Missouri" />)).toContain("Overall: Slight edge Georgia");
   });
 });

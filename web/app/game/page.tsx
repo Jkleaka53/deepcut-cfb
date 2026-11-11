@@ -114,7 +114,7 @@ function MatchupView() {
       <section id="preview">
         <h3 className="sec-title">Preview</h3>
         <SwingCard swing={m.swing} teams={teams} />
-        <EdgeCard sections={m.sections} teams={teams} overall={m.swing?.overallEdge} />
+        <EdgeCard sections={m.sections} teams={teams} overall={m.swing?.overallEdge} home={m.game.home} away={m.game.away} />
         {gaps.length > 0 && <div className="card">
           <h4>Biggest edges</h4>
           {gaps.map(({ section, row, phase }) => (

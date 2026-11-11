@@ -62,7 +62,7 @@ describe("run phase", () => {
   });
 
   it("edge card shows a run line per side", () => {
-    const h = html(<EdgeCard sections={[sec(runs)]} teams={{}} />);
+    const h = html(<EdgeCard sections={[sec(runs)]} teams={{}} home="H" away="A" />);
     expect(h).toContain("When Georgia runs: Missouri defense has a slight edge");
   });
 });

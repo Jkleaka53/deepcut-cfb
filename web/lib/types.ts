@@ -33,6 +33,8 @@ export interface GameSummary {
   weather?: Weather | null;
   gap?: { key: string; label: string; favors: string } | null;
   keyFactor?: { label: string; favors: string } | null;
+  /** Overall edge score for the home chip; null when even or unscored. */
+  edge?: { band: "even" | "slight" | "clear"; team: string | null; score: number } | null;
 }
 
 export type WeatherIcon = "clear" | "partly-cloudy" | "cloudy" | "fog" | "drizzle" | "rain" | "snow" | "storm";
@@ -187,7 +189,8 @@ export interface Driver {
 
 export interface Storyline { text: string; sample: string; kind: "storyline" }
 
-export interface OverallEdge { edge: "even" | "slight" | "clear"; team: string | null }
+/** score: 0-10 edge score (percentile of how lopsided the matchup is); missing in old JSON. */
+export interface OverallEdge { edge: "even" | "slight" | "clear"; team: string | null; score?: number | null }
 
 export interface Swing {
   drivers: Driver[];

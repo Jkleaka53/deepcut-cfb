@@ -1,5 +1,6 @@
 import { edgeLine, runView } from "@/lib/matchup";
 import { overallText } from "@/lib/swing";
+import EdgeMeter from "./EdgeMeter";
 import type { OverallEdge, Section, TeamInfo } from "@/lib/types";
 
 function sentence(sections: Section[]): string {
@@ -20,11 +21,15 @@ function sentence(sections: Section[]): string {
   return parts.length ? `${parts.join("; ")}.` : "These passing games are evenly matched.";
 }
 
-export default function EdgeCard({ sections, teams, overall }: { sections: Section[]; teams: Record<string, TeamInfo>; overall?: OverallEdge | null }) {
-  const o = overallText(overall);
+export default function EdgeCard({ sections, teams, overall, home, away }: {
+  sections: Section[]; teams: Record<string, TeamInfo>; overall?: OverallEdge | null; home: string; away: string;
+}) {
+  const scored = overall?.score != null;
+  const o = scored ? null : overallText(overall);
   return (
     <div className="card">
       <h4>The edge</h4>
+      {scored && <EdgeMeter overall={overall} home={home} away={away} teams={teams} />}
       {o && <p className="edge-overall">{o}</p>}
       <p className="edge-sentence">{sentence(sections)}</p>
       {[...sections.map((s) => ({ s, verb: "passes" as const })),
@@ -37,7 +42,7 @@ export default function EdgeCard({ sections, teams, overall }: { sections: Secti
             style={l.team ? { background: t?.fill ?? "var(--ink)", color: "#ffffff" } : undefined}>{l.text}</div>
         );
       })}
-      <p className="muted small">{o ? "Overall weighs every stat by how much it has decided games. The lines below are the passing and running stats. " : ""}Who ranks better on paper. Not a prediction.</p>
+      <p className="muted small">{o || scored ? "Overall weighs every stat by how much it has decided games. The lines below are the passing and running stats. " : ""}Who ranks better on paper. Not a prediction.</p>
     </div>
   );
 }

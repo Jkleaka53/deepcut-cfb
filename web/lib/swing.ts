@@ -1,7 +1,11 @@
 import { ordinal } from "./format";
 import type { Driver, GameSummary, OverallEdge, Section, UnitRow } from "./types";
 
-const BAND = { even: "Even", slight: "Slight edge", clear: "Big edge" } as const;
+export const BAND = { even: "Even", slight: "Slight edge", clear: "Big edge" } as const;
+
+/** Edge-score cutoffs; mirror engine config.EDGE_SCORE_SLIGHT / EDGE_SCORE_BIG. */
+export const EDGE_SLIGHT = 2;
+export const EDGE_BIG = 8;
 
 export function bandText(edge: Driver["edge"], team: string | null): string {
   return edge === "even" || !team ? "Even" : `${BAND[edge]} ${team}`;
@@ -26,4 +30,9 @@ export function chipText(g: Pick<GameSummary, "keyFactor" | "gap">, abbr: string
   if (g.keyFactor) return `Key: ${g.keyFactor.label} · ${abbr}`;
   if (g.gap) return `Edge: ${g.gap.label} · ${abbr}`;
   return null;
+}
+
+export function edgeChipText(e: GameSummary["edge"], abbr: string): string | null {
+  if (!e || e.band === "even" || !e.team) return null;
+  return `${BAND[e.band]} · ${abbr} ${e.score.toFixed(1)}`;
 }
