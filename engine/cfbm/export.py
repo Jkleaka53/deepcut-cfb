@@ -252,16 +252,16 @@ def train_upset_model(client, seasons) -> dict | None:
     return None if frame is None else edge_model.train(frame, keys=UPSET_KEYS)
 
 
-def edge_training_inputs(client, seasons) -> tuple[pd.DataFrame, dict[int, dict], dict[int, set[str]], dict]:
+def edge_training_inputs(client, seasons, live_season: int | None = None) -> tuple[pd.DataFrame, dict[int, dict], dict[int, set[str]], dict]:
     """Team-game stats, games, FBS sets and season priors (team_prior) for the edge model's training seasons
-    (cached CFBD calls)."""
+    (cached CFBD calls; live_season's priors are always fetched fresh)."""
     adv, games, fbs = [], {}, {}
     for y in seasons:
         adv += fetch.game_advanced(client, y, False)
         fbs[y] = fetch.fbs_teams(client, y)
         for g in fetch.games(client, y, False):
             games[g["id"]] = g
-    return team_games(adv), games, fbs, team_prior.load(client, seasons)
+    return team_games(adv), games, fbs, team_prior.load(client, seasons, live_season)
 
 
 def edge_training_frame(client, seasons, k: float = config.EDGE_SHRINK_K) -> pd.DataFrame | None:

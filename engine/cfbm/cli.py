@@ -48,7 +48,7 @@ def _season_scores(client, model: dict, season: int):
     from cfbm.edge_score import to_score
     from cfbm.export import edge_training_inputs
 
-    tg, games, fbs, priors = edge_training_inputs(client, (season,))
+    tg, games, fbs, priors = edge_training_inputs(client, (season,), live_season=season)
     tables = edge_model.pregame_tables(tg, games, fbs)
     fr = edge_model.frame(tg, games, fbs, tables=tables, priors=priors)
     lin = frame_linear(model, fr, edge_model.EDGE_KEYS)
