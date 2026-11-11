@@ -46,6 +46,14 @@ def _quantiles(values: np.ndarray) -> list[float]:
     return [round(float(x), 6) for x in np.quantile(v, QUANTS)]
 
 
+def _matchup_win_rate(f: pd.Series, home_win: pd.Series) -> float:
+    """Share of games the team with the better side of this stat's matchup won (ties skipped).
+    A description of past seasons, shown as text; never a probability for a game."""
+    ok = f.notna() & (f != 0)
+    better_won = (f[ok] > 0) == (home_win[ok] == 1)
+    return round(float(better_won.mean()), 3) if ok.any() else 0.5
+
+
 def train(frame: pd.DataFrame, tg: pd.DataFrame, keys: list[str] = KEYS, resamples: int = 200, seed: int = 7) -> dict:
     means = {k: float(frame[f"f_{k}"].mean()) for k in keys}
     sds = {k: float(frame[f"f_{k}"].std()) or 1.0 for k in keys}
@@ -67,7 +75,8 @@ def train(frame: pd.DataFrame, tg: pd.DataFrame, keys: list[str] = KEYS, resampl
                     # better value means winning is overlap with other stats, not a driver.
                     "proven": bool(lo[i] > 0), "importance": round(max(0.0, float(beta[i])), 4),
                     "volatility": _volatility(tg, k), "mean": round(means[k], 6), "sd": round(sds[k], 6),
-                    "sideMean": round(float(side.mean()), 6), "sideSd": round(float(side.std()) or 1.0, 6)}
+                    "sideMean": round(float(side.mean()), 6), "sideSd": round(float(side.std()) or 1.0, 6),
+                    "matchupWinRate": _matchup_win_rate(frame[f"f_{k}"], frame["home_win"])}
     # How lopsided training games were, so a game's edge can be scored 0-10 by percentile.
     # Built from the stored (rounded) values so runtime scoring matches exactly.
     intercept, home = round(float(beta[0]), 4), round(float(beta[1]), 4)

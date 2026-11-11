@@ -90,3 +90,10 @@ def test_resamples_zero_skips_bootstrap():
     fr, tg = _synthetic()
     m = train(fr, tg, keys=["a", "b"], resamples=0)
     assert m["features"]["a"]["lo"] == m["features"]["a"]["coef"]
+
+
+def test_matchup_win_rate():
+    fr, tg = _synthetic()
+    m = train(fr, tg, keys=["a", "b"], resamples=5)
+    assert 0.5 < m["features"]["a"]["matchupWinRate"] <= 1
+    assert abs(m["features"]["b"]["matchupWinRate"] - 0.5) < 0.05
