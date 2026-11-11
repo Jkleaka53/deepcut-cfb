@@ -27,22 +27,55 @@ def api_key() -> str:
     return key
 
 
-def edge_cutoffs(client) -> None:
-    from cfbm import config
-    from cfbm.edge_backtest import band_table, held_out, pick_cutoffs
-    from cfbm.export import training_data
+def _edge_held(client):
+    """(held-out edge scores for the training seasons, the edge training frame)."""
+    from cfbm import config, edge_model
+    from cfbm.edge_backtest import held_out
+    from cfbm.export import edge_training_frame
 
-    data = training_data(client, config.TRAIN_SEASONS)
-    if data is None:
+    fr = edge_training_frame(client, config.TRAIN_SEASONS)
+    if fr is None:
         sys.exit("Not enough training games.")
-    df = held_out(*data)
+    return held_out(fr, keys=edge_model.EDGE_KEYS, fit=edge_model.train), fr
+
+
+def _season_scores(client, model: dict, season: int):
+    """Edge scores for one season's finished games from a fitted edge model: (frame with lin/score/favored_won, tables)."""
+    import numpy as np
+
+    from cfbm import edge_model
+    from cfbm.edge_backtest import frame_linear
+    from cfbm.edge_score import to_score
+    from cfbm.export import edge_training_inputs
+
+    tg, games, fbs = edge_training_inputs(client, (season,))
+    tables = edge_model.pregame_tables(tg, games, fbs)
+    fr = edge_model.frame(tg, games, fbs, tables=tables)
+    lin = frame_linear(model, fr, edge_model.EDGE_KEYS)
+    won = fr["home_win"].to_numpy(int)
+    fr = fr.assign(lin=lin, score=[to_score(v, model["scale"]["overall"]) for v in lin],
+                   favored_won=np.where(lin >= 0, won, 1 - won))
+    return fr, tables, games, fbs
+
+
+def edge_cutoffs(client, check_season: int = 2026) -> None:
+    from cfbm import config, edge_model
+    from cfbm.edge_backtest import band_table, pick_cutoffs
+
+    df, fr = _edge_held(client)
     slight, big = pick_cutoffs(df)
     print(f"games {len(df)}  EDGE_SCORE_SLIGHT = {slight}  EDGE_SCORE_BIG = {big}")
-    for r in band_table(df, slight, big):
-        print(r)
+    pairs = [(slight, big), (config.EDGE_SCORE_SLIGHT, config.EDGE_SCORE_BIG)]
+    for sl, bg in pairs:
+        print(f"history at {sl} / {bg}:", band_table(df, sl, bg))
     for c in (1, 2, 3, 4, 5, 6, 7, 8, 9):
         lo, hi = df[df["score"] < c], df[df["score"] >= c]
         print(f"score<{c}: n={len(lo)} fav={lo['favored_won'].mean():.3f} | score>={c}: n={len(hi)} fav={hi['favored_won'].mean():.3f}")
+    live, *_ = _season_scores(client, edge_model.train(fr), check_season)
+    for sl, bg in pairs:
+        print(f"{check_season} finished games ({len(live)}) at {sl} / {bg}:", band_table(live, sl, bg))
+    for label, part in (("early", live[~live["scored_before"]]), ("weeks 5+", live[live["scored_before"]])):
+        print(f"{check_season} {label} at {pairs[1][0]} / {pairs[1][1]}:", band_table(part, *pairs[1]))
 
 
 def _history(client):
@@ -147,22 +180,13 @@ def shootout_backtest(client, check_season: int = 2026, check_week: int = 10,
 def upset_backtest(client, check_season: int = 2026, check_weeks: tuple[int, ...] = (10, 11)) -> None:
     import numpy as np
 
-    from cfbm import config, fetch
-    from cfbm.edge_backtest import held_out
-    from cfbm.export import train_model, training_data
-    from cfbm.plays import game_orders
-    from cfbm.swing_data import apply_orders, pregame_adjusted, team_games
-    from cfbm.upset import book_prob, fit_spread_scale, gap, our_prob, spread_of
+    from cfbm import edge_model
+    from cfbm.swing_data import MIN_PRIOR
+    from cfbm.upset import book_prob, fit_spread_scale, gap, spread_of
     from cfbm.upset_backtest import covered, join, summary, weekly_picks
 
-    data = training_data(client, config.TRAIN_SEASONS)
-    if data is None:
-        sys.exit("Not enough training games.")
-    held = held_out(*data)
-    games, lines = {}, {}
-    for y in config.TRAIN_SEASONS:
-        games.update({g["id"]: g for g in fetch.games(client, y, False)})
-        lines.update({ln["id"]: ln for ln in fetch.lines(client, y, False)})
+    held, fr = _edge_held(client)
+    games, lines, _ = _history(client)
     sp, hw = [], []
     for gid, ln in lines.items():
         g, s_ = games.get(gid), spread_of(ln)
@@ -171,12 +195,14 @@ def upset_backtest(client, check_season: int = 2026, check_weeks: tuple[int, ...
             sp.append(s_)
             hw.append(int(g["homePoints"] > g["awayPoints"]))
     k = fit_spread_scale(np.array(sp), np.array(hw))
-    df = join(held, lines, games, k)
+    # Judged on the games Upset Watch can pick: both teams with MIN_PRIOR games. All games shown for reference.
+    df = join(held[held["scored_before"]], lines, games, k)
     picks = weekly_picks(df)
-    print(f"spread scale k={k}  games with model+spread {len(df)}")
+    print(f"spread scale k={k}  games with model+spread {len(df)} (both teams {MIN_PRIOR}+ games)")
     print("ALL", summary(picks))
     for s_, p in picks.groupby("season"):
         print(s_, summary(p))
+    print("reference, every week incl. early games:", summary(weekly_picks(join(held, lines, games, k))))
     dogs = []
     for r in df.itertuples():
         bh = r.book_home
@@ -184,33 +210,34 @@ def upset_backtest(client, check_season: int = 2026, check_weeks: tuple[int, ...
         if dog:
             dogs.append(covered(dog, r.spread, r.home_margin))
     print(f"control: all <=45% underdogs n={len(dogs)} cover={np.mean(dogs):.3f}")
+    for lo, hi in ((0, 3.5), (3.5, 7.5), (7.5, 14.5), (14.5, 99)):
+        rows = []
+        for r in df[(df["spread"].abs() > lo) & (df["spread"].abs() <= hi)].itertuples():
+            gp = gap(r.our_home, r.book_home)
+            if gp and gp[1] > 0.10:
+                won = r.home_margin > 0 if gp[0] == "home" else r.home_margin < 0
+                rows.append((covered(gp[0], r.spread, r.home_margin), won, r.book_home if gp[0] == "home" else 1 - r.book_home))
+        if rows:
+            a = np.array(rows, float)
+            print(f"  spread {lo}-{hi}, gap>0.10: n={len(a)} cover={a[:, 0].mean():.3f} won={a[:, 1].mean():.3f} book={a[:, 2].mean():.3f}")
 
-    model = train_model(client, config.TRAIN_SEASONS)
-    g26 = {g["id"]: g for g in fetch.games(client, check_season, False)}
+    live, _, g26, _ = _season_scores(client, edge_model.train(fr), check_season)
+    from cfbm import fetch
     l26 = {ln["id"]: ln for ln in fetch.lines(client, check_season, False)}
-    fbs = fetch.fbs_teams(client, check_season)
-    orders = game_orders(list(g26.values()))
-    tg = apply_orders(team_games(fetch.game_advanced(client, check_season, False)), orders)
-    tg = tg[tg["team"].isin(fbs) & tg["opponent"].isin(fbs)]
+    live = live[live["scored_before"]].set_index("game_id")
     for wk in check_weeks:
         cands = []
-        for g in g26.values():
-            if g.get("week") != wk or g["seasonType"] != "regular" or g["homeTeam"] not in fbs or g["awayTeam"] not in fbs:
+        for gid, r in live.iterrows():
+            g = g26[gid]
+            if g.get("week") != wk or g["seasonType"] != "regular":
                 continue
-            bh = book_prob(l26.get(g["id"], {}))
-            if bh is None:
-                continue
-            pre = pregame_adjusted(tg, check_season, orders.get(g["id"], 0), w=config.OPP_ADJUST)
-            if (pre.reindex([g["homeTeam"], g["awayTeam"]])["games"] < 3).any():
-                continue
-            oh = our_prob(model, pre, g["homeTeam"], g["awayTeam"], bool(g.get("neutralSite")))
-            gp = None if oh is None else gap(oh, bh)
+            bh = book_prob(l26.get(gid, {}))
+            gp = None if bh is None else gap(1 / (1 + np.exp(-r["lin"])), bh)
             if gp:
                 cands.append((gp[1], gp[0], g, bh))
-        print(f"{check_season} wk {wk}: {len(cands)} candidates; top 3:")
+        print(f"{check_season} wk {wk} (finished games only): {len(cands)} candidates; top 3:")
         for gv, dog, g, bh in sorted(cands, key=lambda c: -c[0])[:3]:
-            res = f"{g['awayPoints']}-{g['homePoints']}" if g.get("completed") else "not played"
-            print(f"   {g['awayTeam']} at {g['homeTeam']}  dog={dog}  DK home {round(100*bh)}%  gap {gv:.2f}  {res}")
+            print(f"   {g['awayTeam']} at {g['homeTeam']}  dog={dog}  DK home {round(100*bh)}%  gap {gv:.2f}  {g['awayPoints']}-{g['homePoints']}")
 
 
 def main(argv: list[str] | None = None) -> None:

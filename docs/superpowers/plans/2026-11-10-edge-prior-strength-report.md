@@ -49,3 +49,47 @@ Chosen: k = 0 (lowest; all within 0.001). A team's numbers are centered on the l
 ### Elo check
 
 Pregame Elo on a game row equals the team's postgame Elo from its previous FBS-vs-FBS game in 99.6% to 100% of cases every season, so the rating holds nothing from the game it is used for. CFBD puts an unrelated placeholder on FBS-vs-FCS rows from 2022 on; the model never reads those rows.
+
+## Gate 1 answer
+
+Owner: continue (2026-11-10).
+
+## Gate 2: Upset Watch on the new model
+
+`uv run python -m cfbm.cli upset-backtest`. Judged on games where both teams have three or more prior games (5637), one pick a week, 127 weeks.
+
+| | New model | Current nine-stat model | Bar |
+|---|---|---|---|
+| Underdog covered | 47.2% | 52.7% | above 50% |
+| Underdog won outright | 31.5% | 31.0% | above the book |
+| Book said | 28.9% | 25.9% | |
+
+Verdict: FAIL on the cover bar, pass on outright wins. As the audit predicted, a model that knows prior strength disagrees with the market less, and what disagreement is left is not better than the spread. All weeks including early games (reference only): covered 44.3%, won 30.4% vs book 28.8% over 158 weeks.
+
+By season, covered: 2015 69%, 2016 50%, 2017 42%, 2018 25%, 2019 38%, 2021 38%, 2022 62%, 2023 46%, 2024 58%, 2025 43%.
+
+All underdogs we like by more than 10 points, by spread size:
+
+| Spread | Games | Covered | Won | Book said |
+|---|---|---|---|---|
+| 3.5 or less | 226 | 54.4% | 48.2% | 41.8% |
+| 4 to 7.5 | 279 | 50.5% | 36.6% | 33.3% |
+| 8 to 14.5 | 213 | 49.3% | 23.0% | 21.1% |
+| 15+ | 107 | 48.6% | 12.1% | 9.8% |
+
+Control: every underdog at or under 45% covers 49.4%.
+
+## Gate 3: Even / Slight / Big cutoffs on the new model
+
+`uv run python -m cfbm.cli edge-cutoffs`. Held-out, all 7791 games; 2026 is the 562 finished games scored by the full-history model.
+
+| Cutoffs | | Even | Slight | Big |
+|---|---|---|---|---|
+| 2.0 / 8.0 (current) | 2015-2025 | 1517 games, favored won 54.0% | 4685, 71.8% | 1589, 91.3% |
+| | 2026 | 106, 50.0% | 355, 73.5% | 101, 89.1% |
+| 1.0 / 5.5 (backtest's suggestion) | 2015-2025 | 738, 52.0% | 3532, 63.8% | 3521, 85.0% |
+| | 2026 | 50, 54.0% | 266, 63.9% | 246, 84.1% |
+
+2026 at 2.0 / 8.0, split: early games Even 40 (57.5%), Slight 137 (79.6%), Big 47 (93.6%); weeks 5+ Even 66 (45.5%), Slight 218 (69.7%), Big 54 (85.2%).
+
+The suggestion would label 45% of all games Big. At 2.0 / 8.0 the three labels separate more cleanly than they do today (current model, held-out: Even 53.5%, Slight 69.1%, Big 85.3%).
