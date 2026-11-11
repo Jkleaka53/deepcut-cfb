@@ -68,3 +68,9 @@ export function loadView(): HomeView | null {
     return null;
   }
 }
+
+/** Games your favorite teams play in the selected week (the My Teams section follows the week chips). */
+export function myTeamGames(games: GameSummary[], week: string, favorites: string[]): GameSummary[] {
+  if (!week || favorites.length === 0) return [];
+  return games.filter((g) => weekValue(g) === week && passes(g, "mine", favorites));
+}

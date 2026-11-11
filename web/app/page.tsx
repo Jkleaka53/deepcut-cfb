@@ -10,7 +10,7 @@ import { loadGames, loadGotw, loadIndex, loadPlayers, loadShootout, loadTeams } 
 import { gotwFor, pickFor, type GotwPicks } from "@/lib/gotw";
 import { getFavorites, toggleFavorite } from "@/lib/favorites";
 import { getWatch, toggleWatch } from "@/lib/watchlist";
-import { FILTERS, type Filter, groupByDay, loadView, passes, POST, saveView, weekChips, weekValue } from "@/lib/filters";
+import { FILTERS, type Filter, groupByDay, loadView, myTeamGames, passes, POST, saveView, weekChips, weekValue } from "@/lib/filters";
 import { matchGame } from "@/lib/search";
 import type { GameSummary, Index, PlayerEntry, TeamInfo } from "@/lib/types";
 
@@ -85,10 +85,7 @@ export default function Home() {
     [games, week, filter, favorites, watched, query, players, searching],
   );
 
-  const myGames = useMemo(
-    () => (currentWeek === null ? [] : games.filter((g) => weekValue(g) === currentWeek && passes(g, "mine", favorites))),
-    [games, favorites, currentWeek],
-  );
+  const myGames = useMemo(() => myTeamGames(games, week, favorites), [games, favorites, week]);
 
   const featured = searching ? null : gotwFor(gotw, week, games, filter, favorites);
   const shootout = searching ? null : pickFor(shoot, week, games, filter, favorites);
