@@ -150,3 +150,10 @@ def test_ordinal():
     from cfbm.shootout import ordinal
     assert [ordinal(n) for n in (1, 2, 3, 4, 11, 12, 13, 21, 22, 101, 112)] == \
         ["1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "101st", "112th"]
+
+
+def test_why_text_drops_pace_when_both_slow():
+    pre = _rank_pre()
+    # T28 and T29 have the fewest drives per game (ranks 29th and 30th of 30): no pace line
+    text = why_text(pre, "T28", "T29")
+    assert "Pace" not in text and text.endswith("of 30.")

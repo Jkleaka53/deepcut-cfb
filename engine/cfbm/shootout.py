@@ -106,8 +106,8 @@ def predicted_total(model: dict, pre: pd.DataFrame, home: str, away: str, neutra
 
 WHY_BOTH = "Both offenses score efficiently and both defenses give it up"
 WHY_LOTS = "Lots of expected scoring"
-WHY_TAIL = ("offenses rank {ao} and {ho} in points added per play, defenses {ad} and {hd} of {n}. "
-            "Pace: {ap} and {hp} in drives per game.")
+WHY_TAIL = "offenses rank {ao} and {ho} in points added per play, defenses {ad} and {hd} of {n}."
+WHY_PACE = " Pace: {ap} and {hp} in drives per game."
 
 
 def ordinal(n: int) -> str:
@@ -124,13 +124,15 @@ def _rank(series: pd.Series, team: str, ascending: bool) -> int:
 def why_text(pre: pd.DataFrame, home: str, away: str) -> str:
     """Plain-words reason: national ranks only (offense by points added per play, defense 1 = best, pace by
     drives per game). Opens with 'Both offenses...' only when both offenses are top third and both
-    defenses bottom third."""
+    defenses bottom third. The pace line appears only when at least one team plays fast (top half)."""
     n = int(pre["off_ppa"].notna().sum())
     r = {f"{p}o": _rank(pre["off_ppa"], t, False) for p, t in (("a", away), ("h", home))}
     r |= {f"{p}d": _rank(pre["def_ppa"], t, True) for p, t in (("a", away), ("h", home))}
     r |= {f"{p}p": _rank(pre["off_drives"], t, False) for p, t in (("a", away), ("h", home))}
     both = max(r["ao"], r["ho"]) <= n / 3 and min(r["ad"], r["hd"]) > 2 * n / 3
-    return f"{WHY_BOTH if both else WHY_LOTS}: " + WHY_TAIL.format(n=n, **{k: ordinal(v) for k, v in r.items()})
+    words = {k: ordinal(v) for k, v in r.items()}
+    pace = WHY_PACE.format(**words) if min(r["ap"], r["hp"]) <= n / 2 else ""
+    return f"{WHY_BOTH if both else WHY_LOTS}: " + WHY_TAIL.format(n=n, **words) + pace
 
 
 def pick(scored: list[tuple[dict, float, str]], gotw: dict[str, dict]) -> tuple[dict[str, dict], set[int]]:
