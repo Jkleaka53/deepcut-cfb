@@ -27,11 +27,16 @@ def frame_linear(model: dict, frame: pd.DataFrame, keys=KEYS) -> np.ndarray:
     return lin
 
 
-def held_out(frame: pd.DataFrame, tg: pd.DataFrame, keys=KEYS) -> pd.DataFrame:
+def held_out(frame: pd.DataFrame, tg: pd.DataFrame | None = None, keys=KEYS, fit=None) -> pd.DataFrame:
+    """Each season scored by a model fitted on the others. fit(training rows) -> model; the default is the
+    nine-stat swing model. A frame with scored_before carries it through."""
+    if fit is None:
+        def fit(rows):
+            return train(rows, tg, keys=keys, resamples=0)
     parts = []
     for s in sorted(frame["season"].unique()):
         test = frame[frame["season"] == s]
-        m = train(frame[frame["season"] != s], tg, keys=keys, resamples=0)
+        m = fit(frame[frame["season"] != s])
         lin = frame_linear(m, test, keys)
         won = test["home_win"].to_numpy(int)
         parts.append(pd.DataFrame({
@@ -40,6 +45,7 @@ def held_out(frame: pd.DataFrame, tg: pd.DataFrame, keys=KEYS) -> pd.DataFrame:
             "lin": lin,
             "score": [to_score(v, m["scale"]["overall"]) for v in lin],
             "favored_won": np.where(lin >= 0, won, 1 - won),
+            **({"scored_before": test["scored_before"].to_numpy(bool)} if "scored_before" in test else {}),
         }))
     return pd.concat(parts, ignore_index=True)
 

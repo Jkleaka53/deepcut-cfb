@@ -66,4 +66,7 @@ OPP_ADJUST = 0.8
 # Edge model (2026-11-10): scoring margin per game is capped at this many points either way, and a team's
 # season-to-date numbers are pulled toward the league average by n / (n + EDGE_SHRINK_K) (n = its games so far).
 EDGE_MARGIN_CAP = 28
-EDGE_SHRINK_K = 2.0  # provisional until the held-out check in edge-audit confirms it
+# Shrink strength set 2026-11-10 by `cfbm.cli edge-audit` (leave-one-season-out, 7791 games 2015-2025 minus 2020),
+# all-games log loss: k=0 0.5404, k=1 0.5405, k=2 0.5407, k=3 0.5410, k=5 0.5412. No shrinking was best by a hair,
+# so a team's numbers are only centered on the league average; a team with no games sits at the average.
+EDGE_SHRINK_K = 0.0

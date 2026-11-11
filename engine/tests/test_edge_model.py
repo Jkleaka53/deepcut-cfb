@@ -100,3 +100,100 @@ def test_features_are_home_minus_away():
     pre.loc["H", "def_rush_sr"], pre.loc["A", "def_rush_sr"] = 0.3, 0.5   # H allows less
     f = features(shrunk_pregame(pre, _margin({"H": (8, 7), "A": (8, -7)}), 0.0), "H", "A", 1500, 1550)
     assert f["rush_sr"] == pytest.approx(0.4) and f["margin"] == 14 and f["elo"] == -50
+
+
+# --- training frame and fit ---------------------------------------------------------------------------------
+import numpy as np  # noqa: E402
+
+from cfbm import config  # noqa: E402
+from cfbm.edge_backtest import held_out  # noqa: E402
+from cfbm.edge_model import frame, train  # noqa: E402
+from cfbm.swing_data import pregame_adjusted  # noqa: E402
+
+TEAMS = [f"T{i}" for i in range(8)]
+
+
+def _world(seasons=(2023, 2024), weeks=7, seed=4):
+    """Round robin among 8 teams for each season: advanced-stat rows, games with points and Elo."""
+    rng = np.random.default_rng(seed)
+    tg_rows, games, gid = [], {}, 0
+    strength = dict(zip(TEAMS, np.linspace(-1, 1, 8)))
+    for s in seasons:
+        for wk in range(1, weeks + 1):
+            rot = [TEAMS[0]] + TEAMS[1:][wk - 1:] + TEAMS[1:][:wk - 1]
+            for i in range(4):
+                h, a = rot[i], rot[7 - i]
+                gid += 1
+                hp = int(24 + 10 * strength[h] + rng.integers(-10, 11))
+                ap = int(24 + 10 * strength[a] + rng.integers(-10, 11))
+                ap = ap + 1 if ap == hp else ap
+                games[gid] = {"id": gid, "season": s, "week": wk, "seasonType": "regular", "homeTeam": h, "awayTeam": a,
+                              "homePoints": hp, "awayPoints": ap, "neutralSite": False, "startDate": f"{s}-09-{wk:02d}",
+                              "homePregameElo": 1500 + 200 * strength[h] + wk, "awayPregameElo": 1500 + 200 * strength[a]}
+                for t, o in ((h, a), (a, h)):
+                    row = {"game_id": gid, "season": s, "order": wk, "team": t, "opponent": o}
+                    for c in stat_cols():
+                        row[c] = strength[t] * (0.1 if c.startswith("off_") else -0.1) + rng.normal(0, 0.05)
+                    tg_rows.append(row)
+    return pd.DataFrame(tg_rows), games, {s: set(TEAMS) for s in seasons}
+
+
+def test_frame_keeps_early_games_and_flags_them():
+    tg, games, fbs = _world()
+    fr = frame(tg, games, fbs, k=2.0).set_index("game_id")
+    assert len(fr) == len(games)
+    wk1 = fr.loc[1]
+    assert not wk1.scored_before and wk1.f_pass_ppa == 0 and wk1.f_margin == 0
+    assert wk1.f_elo == pytest.approx(games[1]["homePregameElo"] - games[1]["awayPregameElo"])
+    assert fr.loc[max(games)].scored_before
+    wk3 = fr.loc[[g for g, x in games.items() if x["week"] == 3 and x["season"] == 2023]]
+    assert not wk3.scored_before.any() and (wk3.f_pass_ppa != 0).all()   # two games each: scored, but thin
+
+
+def test_frame_skips_games_without_elo_ties_and_non_fbs():
+    tg, games, fbs = _world()
+    games[5]["homePregameElo"] = None
+    games[6]["awayPoints"] = games[6]["homePoints"]
+    fbs[2023] = fbs[2023] - {"T7"}
+    fr = frame(tg, games, fbs, k=2.0)
+    assert 5 not in set(fr.game_id) and 6 not in set(fr.game_id)
+    t7 = {g for g, x in games.items() if x["season"] == 2023 and "T7" in (x["homeTeam"], x["awayTeam"])}
+    assert not t7 & set(fr.game_id)
+
+
+def test_frame_matches_live_features_for_the_same_game():
+    tg, games, fbs = _world()
+    gid = max(g for g, x in games.items() if x["season"] == 2024 and x["week"] == 5)
+    g = games[gid]
+    row = frame(tg, games, fbs, k=2.0).set_index("game_id").loc[gid]
+    tm = team_margins(list(games.values()), fbs, {i: x["week"] for i, x in games.items()})
+    sp = shrunk_pregame(pregame_adjusted(tg, 2024, 5, w=config.OPP_ADJUST), margin_before(tm, 2024, 5), 2.0)
+    live = features(sp, g["homeTeam"], g["awayTeam"], g["homePregameElo"], g["awayPregameElo"])
+    assert all(row[f"f_{k}"] == pytest.approx(live[k]) for k in EDGE_KEYS)
+
+
+def test_frame_never_uses_the_game_itself():
+    tg, games, fbs = _world()
+    before = frame(tg, games, fbs, k=2.0).set_index("game_id").loc[20]
+    games[20]["homePoints"], games[20]["awayPoints"] = 99, 0
+    tg.loc[tg.game_id == 20, stat_cols()] = 9.0
+    after = frame(tg, games, fbs, k=2.0).set_index("game_id").loc[20]
+    assert all(before[f"f_{k}"] == pytest.approx(after[f"f_{k}"]) for k in EDGE_KEYS)
+
+
+def test_train_scale_is_monotone_and_has_101_points():
+    tg, games, fbs = _world(seasons=(2021, 2022, 2023, 2024))
+    m = train(frame(tg, games, fbs, k=2.0))
+    q = m["scale"]["overall"]
+    assert len(q) == 101 and q == sorted(q) and set(m["features"]) == set(EDGE_KEYS)
+    assert m["features"]["elo"]["coef"] > 0 and m["games"] == len(games) and m["seasons"] == [2021, 2022, 2023, 2024]
+    assert set(m["features"]["elo"]) == {"coef", "mean", "sd"} and "coef" in m["home"]
+
+
+def test_held_out_accepts_a_fit_function():
+    tg, games, fbs = _world(seasons=(2021, 2022, 2023, 2024))
+    fr = frame(tg, games, fbs, k=2.0)
+    df = held_out(fr, keys=EDGE_KEYS, fit=train)
+    assert {"season", "game_id", "lin", "score", "favored_won", "scored_before"} <= set(df.columns)
+    assert len(df) == len(fr) and df["score"].between(0, 10).all()
+    assert df["favored_won"].mean() > 0.6   # Elo tracks strength in this world, so held-out picks beat a coin

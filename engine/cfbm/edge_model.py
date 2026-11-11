@@ -74,3 +74,82 @@ def features(sp: pd.DataFrame, home: str, away: str, elo_home: float | None,
     out["elo"] = float(elo_home) - float(elo_away)
     out["margin"] = val(home, "margin") - val(away, "margin")
     return out
+
+
+def pregame_tables(tg: pd.DataFrame, games_by_id: dict[int, dict], fbs_by_season: dict[int, set[str]]) -> dict:
+    """{(season, order): (adjusted pregame stats, margin so far)} for every kickoff slot with a game, plus
+    {"orders": {game_id: order}}. The same two calls the live build makes, so training cannot drift from it.
+    Shrinking is left out so several shrink strengths can share one (slow) pass."""
+    from cfbm.plays import game_orders
+    from cfbm.swing_data import apply_orders, pregame_adjusted
+
+    by_season: dict[int, list[dict]] = {}
+    for g in games_by_id.values():
+        by_season.setdefault(g.get("season"), []).append(g)
+    orders: dict[int, int] = {}
+    for gs in by_season.values():
+        orders.update(game_orders(gs))
+    tg = apply_orders(tg, orders)
+    mask = pd.Series([t in fbs_by_season.get(s, set()) and o in fbs_by_season.get(s, set())
+                      for s, t, o in zip(tg["season"], tg["team"], tg["opponent"])], index=tg.index, dtype=bool)
+    tg = tg[mask]
+    tm = team_margins(list(games_by_id.values()), fbs_by_season, orders)
+    out: dict = {"orders": orders}
+    for s, gs in by_season.items():
+        fbs = fbs_by_season.get(s, set())
+        tgs = tg[tg["season"] == s]
+        for o in sorted({orders[g["id"]] for g in gs if g.get("homeTeam") in fbs and g.get("awayTeam") in fbs}):
+            out[(s, o)] = (pregame_adjusted(tgs, s, o, w=config.OPP_ADJUST), margin_before(tm, s, o))
+    return out
+
+
+def frame(tg: pd.DataFrame, games_by_id: dict[int, dict], fbs_by_season: dict[int, set[str]],
+          k: float = config.EDGE_SHRINK_K, tables: dict | None = None) -> pd.DataFrame:
+    """One row per decided FBS-vs-FBS game with both Elo ratings: the result, home field, the EDGE_KEYS
+    inputs as of kickoff, and scored_before (both teams had MIN_PRIOR games: the set the nine-stat model scores)."""
+    from cfbm.swing_data import MIN_PRIOR
+
+    tables = tables or pregame_tables(tg, games_by_id, fbs_by_season)
+    orders = tables["orders"]
+    cols = ["game_id", "season", "home_win", "home", "scored_before"] + [f"f_{key}" for key in EDGE_KEYS]
+    shrunk: dict = {}
+    rows = []
+    for gid, g in games_by_id.items():
+        s, h, a = g.get("season"), g.get("homeTeam"), g.get("awayTeam")
+        hp, ap = g.get("homePoints"), g.get("awayPoints")
+        fbs = fbs_by_season.get(s, set())
+        slot = (s, orders.get(gid))
+        if h not in fbs or a not in fbs or hp is None or ap is None or hp == ap or slot not in tables:
+            continue
+        pre, mb = tables[slot]
+        if slot not in shrunk:
+            shrunk[slot] = shrunk_pregame(pre, mb, k)
+        feats = features(shrunk[slot], h, a, g.get("homePregameElo"), g.get("awayPregameElo"))
+        if feats is None:
+            continue
+        games = pre["games"].reindex([h, a]).fillna(0)
+        rows.append({"game_id": gid, "season": s, "home_win": int(hp > ap), "home": 0 if g.get("neutralSite") else 1,
+                     "scored_before": bool((games >= MIN_PRIOR).all()), **{f"f_{key}": v for key, v in feats.items()}})
+    return pd.DataFrame(rows, columns=cols)
+
+
+def train(frame: pd.DataFrame, keys: list[str] = EDGE_KEYS) -> dict:
+    """Logistic fit on standardized inputs. Returns what edge_score needs: weights, and how lopsided training
+    games were (quantiles of the absolute linear score), so a game's edge can be scored 0-10 by percentile."""
+    from cfbm.swing_model import _quantiles, fit_logit
+
+    means = {key: float(frame[f"f_{key}"].mean()) for key in keys}
+    sds = {key: float(frame[f"f_{key}"].std()) or 1.0 for key in keys}
+    X = np.column_stack([np.ones(len(frame)), frame["home"].to_numpy(float)] +
+                        [((frame[f"f_{key}"] - means[key]) / sds[key]).to_numpy(float) for key in keys])
+    beta = fit_logit(X, frame["home_win"].to_numpy(float))
+    feats = {key: {"coef": round(float(beta[i]), 4), "mean": round(means[key], 6), "sd": round(sds[key], 6)}
+             for i, key in enumerate(keys, start=2)}
+    # Built from the stored (rounded) values so runtime scoring matches exactly.
+    intercept, home = round(float(beta[0]), 4), round(float(beta[1]), 4)
+    lin = intercept + home * frame["home"].to_numpy(float)
+    for key in keys:
+        f = feats[key]
+        lin = lin + f["coef"] * (frame[f"f_{key}"].to_numpy(float) - f["mean"]) / f["sd"]
+    return {"seasons": sorted(int(s) for s in frame["season"].unique()), "games": int(len(frame)),
+            "intercept": intercept, "home": {"coef": home}, "features": feats, "scale": {"overall": _quantiles(lin)}}

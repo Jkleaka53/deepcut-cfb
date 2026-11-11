@@ -33,6 +33,7 @@ from cfbm.shootout import SHOOT_COLS, SHOOT_FEATURES
 from cfbm.swing import swing_block
 from cfbm.swing_data import pregame, pregame_adjusted, team_games, training_frame
 from cfbm.swing_model import train
+from cfbm import edge_model
 
 
 def to_json_safe(obj):
@@ -226,6 +227,30 @@ def train_model(client, seasons) -> dict | None:
     """Fit the swing-factor model on past seasons. None if there isn't enough data."""
     data = training_data(client, seasons)
     return train(*data) if data else None
+
+
+def edge_training_inputs(client, seasons) -> tuple[pd.DataFrame, dict[int, dict], dict[int, set[str]]]:
+    """Team-game stats, games and FBS sets for the edge model's training seasons (cached CFBD calls)."""
+    adv, games, fbs = [], {}, {}
+    for y in seasons:
+        adv += fetch.game_advanced(client, y, False)
+        fbs[y] = fetch.fbs_teams(client, y)
+        for g in fetch.games(client, y, False):
+            games[g["id"]] = g
+    return team_games(adv), games, fbs
+
+
+def edge_training_frame(client, seasons, k: float = config.EDGE_SHRINK_K) -> pd.DataFrame | None:
+    """The edge model's training frame for past seasons. None if there are too few games."""
+    tg, games, fbs = edge_training_inputs(client, seasons)
+    frame = edge_model.frame(tg, games, fbs, k) if not tg.empty else None
+    return None if frame is None or len(frame) < config.MIN_TRAIN_GAMES else frame
+
+
+def train_edge_model(client, seasons) -> dict | None:
+    """Fit the edge score's model on past seasons. None if there isn't enough data."""
+    frame = edge_training_frame(client, seasons)
+    return None if frame is None else edge_model.train(frame)
 
 
 def _pregame(d: _Data, g: dict, order: int) -> pd.DataFrame:

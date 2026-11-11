@@ -74,6 +74,30 @@ def edge_audit(client) -> None:
     print("current model, games it scores:", compare(held, market))
     for s in sorted(held["season"].unique()):
         print(" ", s, compare(held, market, held["season"] == s))
+
+    from cfbm import edge_model
+    from cfbm.edge_model import EDGE_KEYS
+    from cfbm.export import edge_training_inputs
+
+    tg, eg, efbs = edge_training_inputs(client, config.TRAIN_SEASONS)
+    tables = edge_model.pregame_tables(tg, eg, efbs)
+    best = None
+    print("edge model (nine stats + Elo + capped margin), by shrink strength k:")
+    for k in (0, 1, 2, 3, 5):
+        fr = edge_model.frame(tg, eg, efbs, k, tables=tables)
+        h = held_out(fr, keys=EDGE_KEYS, fit=edge_model.train)
+        allg, late, early = compare(h, market), compare(h, market, h["scored_before"]), compare(h, market, ~h["scored_before"])
+        print(f"  k={k}: all {allg}\n        weeks 5+ {late}\n        early {early}")
+        if best is None or allg["modelLogLoss"] < best[1]:
+            best = (k, allg["modelLogLoss"], h, fr)
+    k, _, h, fr = best
+    print(f"best k by all-games log loss: {k} (config.EDGE_SHRINK_K = {config.EDGE_SHRINK_K})")
+    print("edge model on exactly the current model's games:", compare(h, market, h["game_id"].isin(held["game_id"])))
+    elo = held_out(fr, keys=["elo"], fit=lambda rows: edge_model.train(rows, keys=["elo"]))
+    print("Elo and home field only, early games:", compare(elo, market, ~elo["scored_before"]))
+    print("Elo and home field only, all games:", compare(elo, market))
+    for s in sorted(h["season"].unique()):
+        print(" ", s, "all", compare(h, market, h["season"] == s), "| early", compare(h, market, (h["season"] == s) & ~h["scored_before"]))
     for y in config.TRAIN_SEASONS:
         gs = [g for g in games.values() if g["season"] == y]
         print(f"  elo continuity {y}: FBS-vs-FBS {elo_continuity(gs, fbs[y]):.4f}  (all rows {elo_continuity(gs):.4f})")
