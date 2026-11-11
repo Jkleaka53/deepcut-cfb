@@ -33,7 +33,7 @@ from cfbm.shootout import SHOOT_COLS, SHOOT_FEATURES
 from cfbm.swing import swing_block
 from cfbm.swing_data import pregame, pregame_adjusted, team_games, training_frame
 from cfbm.swing_model import train
-from cfbm import edge_model, edge_score
+from cfbm import edge_model, edge_score, team_prior
 from cfbm import swing as swing_mod
 
 
@@ -100,6 +100,7 @@ class _Data:
         self.positions: dict[int, str] = fetch.roster_positions(client, live_season, True)
         raw_adv = [r for s in seasons_all for r in fetch.game_advanced(client, s, s == live_season)]
         self.adv = team_games(raw_adv)
+        self.priors = team_prior.load(client, seasons_all, live_season)
         self.shoot = team_games(raw_adv, SHOOT_FEATURES)
         self.game_by_id: dict[int, dict] = {}
         tgs, passers, skill = [], [], []
@@ -232,21 +233,41 @@ def train_model(client, seasons) -> dict | None:
     return train(*data) if data else None
 
 
-def edge_training_inputs(client, seasons) -> tuple[pd.DataFrame, dict[int, dict], dict[int, set[str]]]:
-    """Team-game stats, games and FBS sets for the edge model's training seasons (cached CFBD calls)."""
+UPSET_KEYS: list[str] = edge_model.KEYS + team_prior.PRIOR_KEYS
+
+
+def upset_training_frame(client, seasons) -> pd.DataFrame | None:
+    """The nine-stat training frame plus roster talent and returning production: what Upset Watch learns from."""
+    data = training_data(client, seasons)
+    if data is None:
+        return None
+    games = {g["id"]: g for y in seasons for g in fetch.games(client, y, False)}
+    return team_prior.add_to_frame(data[0], games, team_prior.load(client, seasons))
+
+
+def train_upset_model(client, seasons) -> dict | None:
+    """Upset Watch's model: the nine pregame stats plus talent and returning production (owner 2026-11-11:
+    it beat the nine stats alone on the upset backtest; the swing-factor card keeps the nine-stat fit)."""
+    frame = upset_training_frame(client, seasons)
+    return None if frame is None else edge_model.train(frame, keys=UPSET_KEYS)
+
+
+def edge_training_inputs(client, seasons) -> tuple[pd.DataFrame, dict[int, dict], dict[int, set[str]], dict]:
+    """Team-game stats, games, FBS sets and season priors (team_prior) for the edge model's training seasons
+    (cached CFBD calls)."""
     adv, games, fbs = [], {}, {}
     for y in seasons:
         adv += fetch.game_advanced(client, y, False)
         fbs[y] = fetch.fbs_teams(client, y)
         for g in fetch.games(client, y, False):
             games[g["id"]] = g
-    return team_games(adv), games, fbs
+    return team_games(adv), games, fbs, team_prior.load(client, seasons)
 
 
 def edge_training_frame(client, seasons, k: float = config.EDGE_SHRINK_K) -> pd.DataFrame | None:
     """The edge model's training frame for past seasons. None if there are too few games."""
-    tg, games, fbs = edge_training_inputs(client, seasons)
-    frame = edge_model.frame(tg, games, fbs, k) if not tg.empty else None
+    tg, games, fbs, priors = edge_training_inputs(client, seasons)
+    frame = edge_model.frame(tg, games, fbs, k, priors=priors) if not tg.empty else None
     return None if frame is None or len(frame) < config.MIN_TRAIN_GAMES else frame
 
 
@@ -275,7 +296,7 @@ def _edge_feats(d: _Data, g: dict, order: int) -> dict | None:
         d._edge_pre[key] = edge_model.shrunk_pregame(_pregame(d, g, order), edge_model.margin_before(d._margins[s], s, order),
                                                      config.EDGE_SHRINK_K)
     return edge_model.features(d._edge_pre[key], g["homeTeam"], g["awayTeam"], g.get("homePregameElo"),
-                               g.get("awayPregameElo"))
+                               g.get("awayPregameElo"), d.priors.get(s))
 
 
 def _pregame_raw(d: _Data, g: dict, order: int) -> pd.DataFrame:
@@ -331,13 +352,15 @@ def upset_picks(d: _Data, built: list[dict], model: dict, lines: dict[int, dict]
         # factors, which need MIN_PRIOR games per team.
         if (pre["games"].reindex([home, away]).fillna(0) < swing_mod.MIN_PRIOR).any():
             continue
-        # Upset Watch still reads the nine-stat model (owner 2026-11-10: it failed its backtest on the edge model).
-        oh = upset.our_prob(model, pre, home, away, bool(g.get("neutralSite")))
+        # Upset Watch reads its own model: nine stats + talent + returning production (owner 2026-11-10/11; the
+        # edge model failed the upset backtest both with and without those two).
+        extra = team_prior.diffs(d.priors.get(g["season"]), home, away)
+        oh = upset.our_prob(model, pre, home, away, bool(g.get("neutralSite")), extra)
         gp = None if oh is None else upset.gap(oh, bh)
         if gp is None:
             continue
         dog, fav = (home, away) if gp[0] == "home" else (away, home)
-        own = upset.own_edge(model, pre, home, away, bool(g.get("neutralSite")))
+        own = upset.own_edge(model, pre, home, away, bool(g.get("neutralSite")), extra)
         if own is None:
             continue
         view = {**m, "swing": {**sw, "overallEdge": own}}  # the reason is judged on the upset model's edge too
@@ -508,7 +531,7 @@ def venue_block(v: dict | None) -> dict | None:
 def build(client, out_dir: Path, seasons=config.DISPLAY_SEASONS, now: datetime | None = None,
           career_start: int = config.CAREER_START_SEASON, weather_fetch=None, model: dict | None = None,
           train_seasons=config.TRAIN_SEASONS, shootout_model: dict | None = None,
-          edge_model: dict | None = None) -> None:
+          edge_model: dict | None = None, upset_model: dict | None = None) -> None:
     out_dir = Path(out_dir)
     live = max(seasons)
     seasons_all = list(range(min(career_start, min(seasons)), live + 1))
@@ -518,6 +541,7 @@ def build(client, out_dir: Path, seasons=config.DISPLAY_SEASONS, now: datetime |
     if shootout_model is None:
         shootout_model = train_shootout(client, train_seasons)
     edge_mdl = edge_model if edge_model is not None else train_edge_model(client, train_seasons)
+    upset_mdl = upset_model if upset_model is not None else train_upset_model(client, train_seasons)
     now = now or datetime.now(timezone.utc)
     fetch_json = weather_fetch or http_fetch
     calls: dict = {}
@@ -565,7 +589,7 @@ def build(client, out_dir: Path, seasons=config.DISPLAY_SEASONS, now: datetime |
         _write(out_dir / str(s) / "gotw.json", gotw)
         _write(out_dir / str(s) / "shootout.json", shoot)
         lines = {ln["id"]: ln for ln in fetch.lines(client, s, s == live)}
-        upsets, upset_edges = upset_picks(d, built, model, lines, gotw, shoot)
+        upsets, upset_edges = upset_picks(d, built, upset_mdl, lines, gotw, shoot)
         # The Upset Watch game shows the upset model's edge, on its page and its home row. Done after Game of
         # the Week and the Shootout are picked, so those still read the edge model for every game.
         by_id = {summ["id"]: summ for summ in summaries}

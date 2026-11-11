@@ -59,21 +59,22 @@ def fit_spread_scale(spreads: np.ndarray, home_win: np.ndarray) -> float:
 DOG_MAX = 0.45
 
 
-def our_prob(model: dict, pre, home: str, away: str, neutral: bool) -> float | None:
-    """Our pregame home win chance from the nine-stat swing model. Internal only, never exported."""
+def our_prob(model: dict, pre, home: str, away: str, neutral: bool, extra: dict | None = None) -> float | None:
+    """Our pregame home win chance from the Upset Watch model (export.train_upset_model). extra = the
+    non-stat inputs (team_prior.diffs). Internal only, never exported."""
     from cfbm.edge_score import overall_linear
 
-    lin = overall_linear(model, pre, home, away, neutral)
+    lin = overall_linear(model, pre, home, away, neutral, extra)
     return None if lin is None else 1 / (1 + math.exp(-lin))
 
 
-def own_edge(model: dict, pre, home: str, away: str, neutral: bool) -> dict | None:
+def own_edge(model: dict, pre, home: str, away: str, neutral: bool, extra: dict | None = None) -> dict | None:
     """The game's edge (band, team, 0-10 score) on the nine-stat model that makes the Upset Watch pick, in the
     shape edge_score.edge returns. The picked game shows this one, so the pick and the score next to it come
     from the same model (owner 2026-11-11). None when the game cannot be scored."""
     from cfbm.edge_score import band, overall_linear, to_score
 
-    lin = overall_linear(model, pre, home, away, neutral)
+    lin = overall_linear(model, pre, home, away, neutral, extra)
     if lin is None:
         return None
     score = to_score(lin, model["scale"]["overall"])

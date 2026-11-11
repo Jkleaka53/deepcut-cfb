@@ -1,5 +1,5 @@
-"""The edge score's model: the nine pregame matchup stats plus prior team strength (pregame Elo) and
-scoring margin to date. Every FBS-vs-FBS game is scored, week 1 included: a team's season-to-date numbers
+"""The edge score's model: the nine pregame matchup stats plus prior team strength (pregame Elo), scoring
+margin to date, and roster talent + returning production (team_prior, owner 2026-11-11). Every FBS-vs-FBS game is scored, week 1 included: a team's season-to-date numbers
 are measured from the league average and a team that has not played sits at the average, so early games
 lean on Elo and home field. (shrunk_pregame can also pull thin samples toward the average, but the held-out
 check picked no shrinking: config.EDGE_SHRINK_K = 0.)
@@ -12,8 +12,9 @@ import pandas as pd
 
 from cfbm import config
 from cfbm.swing_data import DIRECTION, KEYS, stat_cols
+from cfbm.team_prior import PRIOR_KEYS, diffs
 
-EDGE_KEYS: list[str] = KEYS + ["elo", "margin"]
+EDGE_KEYS: list[str] = KEYS + ["elo", "margin"] + PRIOR_KEYS
 
 
 def team_margins(games: list[dict], fbs_by_season: dict[int, set[str]], orders: dict[int, int],
@@ -61,9 +62,10 @@ def shrunk_pregame(pre: pd.DataFrame, margin: pd.DataFrame, k: float) -> pd.Data
 
 
 def features(sp: pd.DataFrame, home: str, away: str, elo_home: float | None,
-             elo_away: float | None) -> dict[str, float] | None:
+             elo_away: float | None, prior: dict | None = None) -> dict[str, float] | None:
     """Home-minus-away inputs for one game, keyed by EDGE_KEYS. None without both Elo ratings.
-    A team that has not played sits at league average on everything but Elo."""
+    A team that has not played sits at league average on everything but Elo and the season priors.
+    prior = one season of team_prior.load (talent, returning production); missing counts as no difference."""
     if elo_home is None or elo_away is None or pd.isna(elo_home) or pd.isna(elo_away):
         return None
 
@@ -76,6 +78,7 @@ def features(sp: pd.DataFrame, home: str, away: str, elo_home: float | None,
                                  - (val(away, f"off_{k}") + val(home, f"def_{k}")))
     out["elo"] = float(elo_home) - float(elo_away)
     out["margin"] = val(home, "margin") - val(away, "margin")
+    out.update(diffs(prior, home, away))
     return out
 
 
@@ -107,7 +110,7 @@ def pregame_tables(tg: pd.DataFrame, games_by_id: dict[int, dict], fbs_by_season
 
 
 def frame(tg: pd.DataFrame, games_by_id: dict[int, dict], fbs_by_season: dict[int, set[str]],
-          k: float = config.EDGE_SHRINK_K, tables: dict | None = None) -> pd.DataFrame:
+          k: float = config.EDGE_SHRINK_K, tables: dict | None = None, priors: dict | None = None) -> pd.DataFrame:
     """One row per decided FBS-vs-FBS game with both Elo ratings: the result, home field, the EDGE_KEYS
     inputs as of kickoff, and scored_before (both teams had MIN_PRIOR games: the set the nine-stat model scores)."""
     from cfbm.swing_data import MIN_PRIOR
@@ -127,7 +130,8 @@ def frame(tg: pd.DataFrame, games_by_id: dict[int, dict], fbs_by_season: dict[in
         pre, mb = tables[slot]
         if slot not in shrunk:
             shrunk[slot] = shrunk_pregame(pre, mb, k)
-        feats = features(shrunk[slot], h, a, g.get("homePregameElo"), g.get("awayPregameElo"))
+        feats = features(shrunk[slot], h, a, g.get("homePregameElo"), g.get("awayPregameElo"),
+                         (priors or {}).get(s))
         if feats is None:
             continue
         games = pre["games"].reindex([h, a]).fillna(0)

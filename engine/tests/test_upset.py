@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import pytest
 
@@ -169,3 +170,19 @@ def test_own_edge_scores_the_game_on_the_upset_model():
     flat = own_edge(model, pd.DataFrame([dict(cols), dict(cols)], index=["Dog", "Fav"]), "Dog", "Fav", True)
     assert flat == {"edge": "even", "team": None, "score": 0.0}
     assert own_edge(model, pre, "Dog", "Nobody", True) is None
+
+
+def test_upset_model_reads_extra_inputs():
+    """Upset Watch's model = nine stats + talent + returning production (owner 2026-11-11)."""
+    import pandas as pd
+    from cfbm.swing_data import KEYS
+    from cfbm.upset import our_prob
+
+    k = KEYS[0]
+    model = {"intercept": 0.0, "home": {"coef": 0.0},
+             "features": {k: {"coef": 1.0, "mean": 0.0, "sd": 1.0}, "talent": {"coef": 1.0, "mean": 0.0, "sd": 100.0}},
+             "scale": {"overall": [0.0, 1.0, 2.0]}}
+    cols = {f"{side}_{key}": 0.0 for key in KEYS for side in ("off", "def")}
+    pre = pd.DataFrame([dict(cols), dict(cols)], index=["H", "A"])
+    assert our_prob(model, pre, "H", "A", True) == pytest.approx(0.5)
+    assert our_prob(model, pre, "H", "A", True, {"talent": 100.0}) == pytest.approx(1 / (1 + math.exp(-1.0)))

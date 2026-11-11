@@ -385,6 +385,10 @@ class AdvClient(WorldClient):
     """WorldClient plus per-game advanced stats, so the edge score has pregame numbers to use."""
 
     def get(self, path, params, *, cacheable=True):
+        if path == "/talent":
+            return [{"year": params["year"], "team": t, "talent": 500.0 + 40 * i} for i, t in enumerate(FBS)]
+        if path == "/player/returning":
+            return [{"season": params["year"], "team": t, "percentPPA": 0.3 + 0.05 * i} for i, t in enumerate(FBS)]
         if path == "/stats/game/advanced":
             out = []
             for g in self.games:
@@ -411,7 +415,8 @@ def _edge_model():
     from cfbm.swing_data import KEYS
     return {"seasons": [2024], "games": 1000, "intercept": 0.0, "home": {"coef": 0.3},
             "features": {**{k: {"coef": 0.3, "mean": 0.0, "sd": 1.0} for k in KEYS},
-                         "elo": {"coef": 0.6, "mean": 0.0, "sd": 100.0}, "margin": {"coef": 0.2, "mean": 0.0, "sd": 10.0}},
+                         "elo": {"coef": 0.6, "mean": 0.0, "sd": 100.0}, "margin": {"coef": 0.2, "mean": 0.0, "sd": 10.0},
+                         "talent": {"coef": 0.4, "mean": 0.0, "sd": 100.0}, "ret": {"coef": 0.1, "mean": 0.0, "sd": 0.2}},
             "scale": {"overall": [i / 50 for i in range(101)]}}
 
 
@@ -424,7 +429,7 @@ def _model_build(tmp_path, client=None):
              "scale": {g: [i / 50 for i in range(101)] for g in ("overall",)}}
     build(client or WorldClient(), tmp_path, seasons=(2025,), career_start=2025,
           now=datetime(2025, 9, 20, tzinfo=timezone.utc), weather_fetch=_fake_weather, model=model,
-          shootout_model=SHOOT_HAND, edge_model=_edge_model())
+          shootout_model=SHOOT_HAND, edge_model=_edge_model(), upset_model=model)
     return tmp_path
 
 
@@ -466,7 +471,7 @@ def test_no_edge_model_means_no_edge_score(tmp_path):
     model = {"seasons": [2024], "games": 1000, "home": {"coef": 0.3}, "features": {k: dict(feat) for k in KEYS},
              "intercept": 0.0, "scale": {"overall": [i / 50 for i in range(101)]}}
     build(AdvClient(), tmp_path, seasons=(2025,), career_start=2025, now=datetime(2025, 9, 20, tzinfo=timezone.utc),
-          weather_fetch=_fake_weather, model=model, shootout_model=SHOOT_HAND)
+          weather_fetch=_fake_weather, model=model, shootout_model=SHOOT_HAND, upset_model=model)
     assert all(_load(f)["swing"]["overallEdge"] is None for f in (tmp_path / "2025" / "matchups").glob("*.json"))
 
 
@@ -628,7 +633,7 @@ def test_upset_game_shows_the_upset_models_edge(tmp_path, monkeypatch):
     import cfbm.upset
     monkeypatch.setattr(cfbm.swing, "MIN_PRIOR", 1)
     monkeypatch.setattr(cfbm.upset, "own_edge",
-                        lambda model, pre, home, away, neutral: {"edge": "slight", "team": None, "score": 7.77})
+                        lambda model, pre, home, away, neutral, extra=None: {"edge": "slight", "team": None, "score": 7.77})
     monkeypatch.setattr(cfbm.upset, "backs_dog", lambda m, dog: True)
     out = _model_build(tmp_path, LinesClient())
     picked = {p["id"] for p in _load(out / "2025" / "upset.json").values()}
@@ -653,19 +658,21 @@ def test_upset_file_empty_without_lines(tmp_path):
 def test_live_edge_inputs_equal_training_inputs_for_every_decided_game():
     """export._edge_feats is what the site scores; edge_model.frame is what the model learned from.
     Same game, same numbers, or live scores drift silently."""
-    from cfbm import edge_model, fetch
+    from cfbm import edge_model, fetch, team_prior
     from cfbm.export import _Data, _edge_feats
     from cfbm.swing_data import team_games
 
     client = AdvClient()
     d = _Data(client, [2025], 2025)
     games = {g["id"]: g for g in client.games}
-    fr = edge_model.frame(team_games(fetch.game_advanced(client, 2025, False)), games, {2025: set(FBS)}).set_index("game_id")
+    fr = edge_model.frame(team_games(fetch.game_advanced(client, 2025, False)), games, {2025: set(FBS)},
+                          priors=team_prior.load(client, [2025])).set_index("game_id")
     assert set(fr.index) == {1, 3, 4, 5, 8}      # decided FBS-vs-FBS games with Elo (2 has none, 6 is vs FCS)
     for gid, row in fr.iterrows():
         live = _edge_feats(d, games[gid], d.orders[gid])
         assert {k: pytest.approx(v) for k, v in live.items()} == {k: row[f"f_{k}"] for k in edge_model.EDGE_KEYS}, gid
     assert any(fr.loc[8, f"f_{k}"] != 0 for k in ("pass_ppa", "margin"))   # the bowl has real stats and margin behind it
+    assert (fr["f_talent"] != 0).all() and (fr["f_ret"] != 0).all()        # talent and returning production reach both
 
 
 class _Tweaked(AdvClient):

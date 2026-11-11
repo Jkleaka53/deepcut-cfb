@@ -48,9 +48,9 @@ def _season_scores(client, model: dict, season: int):
     from cfbm.edge_score import to_score
     from cfbm.export import edge_training_inputs
 
-    tg, games, fbs = edge_training_inputs(client, (season,))
+    tg, games, fbs, priors = edge_training_inputs(client, (season,))
     tables = edge_model.pregame_tables(tg, games, fbs)
-    fr = edge_model.frame(tg, games, fbs, tables=tables)
+    fr = edge_model.frame(tg, games, fbs, tables=tables, priors=priors)
     lin = frame_linear(model, fr, edge_model.EDGE_KEYS)
     won = fr["home_win"].to_numpy(int)
     fr = fr.assign(lin=lin, score=[to_score(v, model["scale"]["overall"]) for v in lin],
@@ -112,12 +112,12 @@ def edge_audit(client) -> None:
     from cfbm.edge_model import EDGE_KEYS
     from cfbm.export import edge_training_inputs
 
-    tg, eg, efbs = edge_training_inputs(client, config.TRAIN_SEASONS)
+    tg, eg, efbs, epri = edge_training_inputs(client, config.TRAIN_SEASONS)
     tables = edge_model.pregame_tables(tg, eg, efbs)
     best = None
     print("edge model (nine stats + Elo + capped margin), by shrink strength k:")
     for k in (0, 1, 2, 3, 5):
-        fr = edge_model.frame(tg, eg, efbs, k, tables=tables)
+        fr = edge_model.frame(tg, eg, efbs, k, tables=tables, priors=epri)
         h = held_out(fr, keys=EDGE_KEYS, fit=edge_model.train)
         allg, late, early = compare(h, market), compare(h, market, h["scored_before"]), compare(h, market, ~h["scored_before"])
         print(f"  k={k}: all {allg}\n        weeks 5+ {late}\n        early {early}")
@@ -178,21 +178,22 @@ def shootout_backtest(client, check_season: int = 2026, check_week: int = 10,
 
 
 def upset_backtest(client, check_season: int = 2026, check_weeks: tuple[int, ...] = (10, 11)) -> None:
-    """Backtests the model Upset Watch actually uses: the nine-stat swing model (export.upset_picks)."""
+    """Backtests the model Upset Watch actually uses: nine stats + talent + returning production (export.upset_picks)."""
     import numpy as np
 
     from cfbm import config, fetch
     from cfbm.edge_backtest import held_out
-    from cfbm.export import train_model, training_data
+    from cfbm import edge_model, team_prior
+    from cfbm.export import UPSET_KEYS, train_upset_model, upset_training_frame
     from cfbm.plays import game_orders
     from cfbm.swing_data import apply_orders, pregame_adjusted, team_games
     from cfbm.upset import book_prob, fit_spread_scale, gap, our_prob, spread_of
     from cfbm.upset_backtest import covered, join, summary, weekly_picks
 
-    data = training_data(client, config.TRAIN_SEASONS)
-    if data is None:
+    frame = upset_training_frame(client, config.TRAIN_SEASONS)
+    if frame is None:
         sys.exit("Not enough training games.")
-    held = held_out(*data)
+    held = held_out(frame, keys=UPSET_KEYS, fit=lambda rows: edge_model.train(rows, keys=UPSET_KEYS))
     games, lines = {}, {}
     for y in config.TRAIN_SEASONS:
         games.update({g["id"]: g for g in fetch.games(client, y, False)})
@@ -224,7 +225,8 @@ def upset_backtest(client, check_season: int = 2026, check_weeks: tuple[int, ...
     print("reference, edge model (not used by Upset Watch), both teams 3+ games:",
           summary(weekly_picks(join(eheld[eheld["scored_before"]], lines, games, k))))
 
-    model = train_model(client, config.TRAIN_SEASONS)
+    model = train_upset_model(client, config.TRAIN_SEASONS)
+    pri = team_prior.load(client, [check_season], check_season)[check_season]
     g26 = {g["id"]: g for g in fetch.games(client, check_season, False)}
     l26 = {ln["id"]: ln for ln in fetch.lines(client, check_season, False)}
     fbs = fetch.fbs_teams(client, check_season)
@@ -242,7 +244,8 @@ def upset_backtest(client, check_season: int = 2026, check_weeks: tuple[int, ...
             pre = pregame_adjusted(tg, check_season, orders.get(g["id"], 0), w=config.OPP_ADJUST)
             if (pre.reindex([g["homeTeam"], g["awayTeam"]])["games"] < 3).any():
                 continue
-            oh = our_prob(model, pre, g["homeTeam"], g["awayTeam"], bool(g.get("neutralSite")))
+            oh = our_prob(model, pre, g["homeTeam"], g["awayTeam"], bool(g.get("neutralSite")),
+                          team_prior.diffs(pri, g["homeTeam"], g["awayTeam"]))
             gp = None if oh is None else gap(oh, bh)
             if gp:
                 cands.append((gp[1], gp[0], g, bh))

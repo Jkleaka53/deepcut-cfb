@@ -214,3 +214,22 @@ def test_games_against_non_fbs_teams_do_not_feed_the_stats():
     assert late
     for gid in late:
         assert all(with_rows.loc[gid, f"f_{k}"] == pytest.approx(without.loc[gid, f"f_{k}"]) for k in EDGE_KEYS)
+
+
+def test_features_carry_talent_and_returning_production():
+    """Owner 2026-11-11: the edge model reads roster talent and returning production (team_prior)."""
+    p = {"talent": {"H": 900.0, "A": 700.0}, "ret": {"H": 0.5, "A": 0.75}}
+    f = features(pd.DataFrame(columns=stat_cols() + ["margin"]), "H", "A", 1600, 1500, prior=p)
+    assert f["talent"] == pytest.approx(200.0) and f["ret"] == pytest.approx(-0.25)
+    none = features(pd.DataFrame(columns=stat_cols() + ["margin"]), "H", "A", 1600, 1500)
+    assert none["talent"] == 0.0 and none["ret"] == 0.0
+
+
+def test_frame_reads_priors_for_each_season():
+    tg, games, fbs = _world()
+    priors = {s: {"talent": {t: 10.0 * i for i, t in enumerate(sorted(f))}, "ret": {}} for s, f in fbs.items()}
+    fr = frame(tg, games, fbs, k=2.0, priors=priors).set_index("game_id")
+    gid = next(iter(fr.index))
+    g = games[gid]
+    want = priors[g["season"]]["talent"][g["homeTeam"]] - priors[g["season"]]["talent"][g["awayTeam"]]
+    assert fr.loc[gid, "f_talent"] == pytest.approx(want) and (fr["f_ret"] == 0).all()
