@@ -16,6 +16,7 @@ const body = Inter({ subsets: ["latin"], variable: "--font-body" });
 export const metadata: Metadata = {
   title: "DeepCut CFB",
   description: "College football games broken down on statistics. Not for gambling or betting.",
+  appleWebApp: { title: "DeepCut" },
 };
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1 };
